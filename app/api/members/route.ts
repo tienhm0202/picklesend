@@ -6,12 +6,13 @@ import { generateLetter } from '@/components/Avatar';
 export async function GET() {
   try {
     const result = await db.execute('SELECT * FROM members ORDER BY name');
-    const members = result.rows.map((row) => ({
+    const members = result.rows.map((row: any) => ({
       id: Number(row.id),
       name: String(row.name),
       balance: Number(row.balance),
       color: row.color ? String(row.color) : undefined,
       letter: row.letter ? String(row.letter) : undefined,
+      is_active: row.is_active !== undefined ? Boolean(row.is_active) : true,
       created_at: String(row.created_at),
     }));
 

@@ -74,11 +74,12 @@ export async function initDatabase() {
       balance REAL DEFAULT 0,
       color TEXT,
       letter TEXT,
+      is_active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
-  // Add color and letter columns if they don't exist (for existing databases)
+  // Add columns if they don't exist (for existing databases)
   try {
     await db.execute(`ALTER TABLE members ADD COLUMN color TEXT`);
   } catch (e: any) {
@@ -91,14 +92,36 @@ export async function initDatabase() {
     // Column already exists, ignore
   }
 
+  try {
+    await db.execute(`ALTER TABLE members ADD COLUMN is_active INTEGER DEFAULT 1`);
+  } catch (e: any) {
+    // Column already exists, ignore
+  }
+
   // Create Guests table
   await db.execute(`
     CREATE TABLE IF NOT EXISTS guests (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      promoted_to_member_id INTEGER,
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (promoted_to_member_id) REFERENCES members(id)
     )
   `);
+
+  // Add columns if they don't exist (for existing databases)
+  try {
+    await db.execute(`ALTER TABLE guests ADD COLUMN promoted_to_member_id INTEGER`);
+  } catch (e: any) {
+    // Column already exists, ignore
+  }
+
+  try {
+    await db.execute(`ALTER TABLE guests ADD COLUMN is_active INTEGER DEFAULT 1`);
+  } catch (e: any) {
+    // Column already exists, ignore
+  }
 
   // Create Deposits table
   await db.execute(`

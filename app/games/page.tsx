@@ -8,11 +8,14 @@ import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 interface Member {
   id: number;
   name: string;
+  is_active?: boolean;
 }
 
 interface Guest {
   id: number;
   name: string;
+  promoted_to_member_id: number | null;
+  is_active?: boolean;
 }
 
 interface Game {
@@ -70,9 +73,15 @@ export default function GamesPage() {
       const gamesData = await gamesRes.json();
       const membersData = await membersRes.json();
       const guestsData = await guestsRes.json();
+      // Filter out promoted guests and inactive guests from the list
+      const activeGuests = guestsData.filter(
+        (guest: Guest) => guest.promoted_to_member_id === null && guest.is_active !== false
+      );
+      // Filter out inactive members from the list
+      const activeMembers = membersData.filter((member: Member) => member.is_active !== false);
       setGames(gamesData);
-      setMembers(membersData);
-      setGuests(guestsData);
+      setMembers(activeMembers);
+      setGuests(activeGuests);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -228,17 +237,24 @@ export default function GamesPage() {
                 <div>
                   <label className="block text-sm font-medium mb-2">Khách</label>
                   <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-lg p-2">
-                    {guests.map((guest) => (
-                      <label key={guest.id} className="flex items-center p-2 hover:bg-gray-100 rounded cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedGuests.includes(guest.id)}
-                          onChange={() => toggleGuest(guest.id)}
-                          className="mr-2"
-                        />
-                        <span>{guest.name}</span>
-                      </label>
-                    ))}
+                    {guests.length > 0 ? (
+                      guests.map((guest) => (
+                        <label key={guest.id} className="flex items-center p-2 hover:bg-gray-100 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedGuests.includes(guest.id)}
+                            onChange={() => toggleGuest(guest.id)}
+                            className="mr-2"
+                            disabled={guest.promoted_to_member_id !== null}
+                          />
+                          <span className={guest.promoted_to_member_id !== null ? 'text-gray-400 line-through' : ''}>
+                            {guest.name}
+                          </span>
+                        </label>
+                      ))
+                    ) : (
+                      <p className="text-sm text-gray-500 p-2">Không có khách nào</p>
+                    )}
                   </div>
                 </div>
               </div>

@@ -9,6 +9,26 @@ export async function PUT(
     const { name } = await request.json();
     const id = parseInt(params.id);
 
+    // Check if guest is promoted
+    const guestResult = await db.execute({
+      sql: 'SELECT promoted_to_member_id FROM guests WHERE id = ?',
+      args: [id],
+    });
+
+    if (guestResult.rows.length === 0) {
+      return NextResponse.json(
+        { error: 'Guest not found' },
+        { status: 404 }
+      );
+    }
+
+    if (guestResult.rows[0].promoted_to_member_id !== null) {
+      return NextResponse.json(
+        { error: 'Cannot edit guest that has been promoted to member' },
+        { status: 403 }
+      );
+    }
+
     if (!name || name.trim() === '') {
       return NextResponse.json(
         { error: 'Name is required' },
@@ -36,10 +56,12 @@ export async function DELETE(
 ) {
   try {
     const id = parseInt(params.id);
+    const { is_active } = await request.json();
 
+    // Toggle is_active instead of deleting
     await db.execute({
-      sql: 'DELETE FROM guests WHERE id = ?',
-      args: [id],
+      sql: 'UPDATE guests SET is_active = ? WHERE id = ?',
+      args: [is_active ? 1 : 0, id],
     });
 
     return NextResponse.json({ success: true });
@@ -55,13 +77,13 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  // Convert guest to member
+  // Convert guest to member (promote)
   try {
     const guestId = parseInt(params.id);
     
     // Get guest info
     const guestResult = await db.execute({
-      sql: 'SELECT name FROM guests WHERE id = ?',
+      sql: 'SELECT name, promoted_to_member_id FROM guests WHERE id = ?',
       args: [guestId],
     });
 
@@ -69,6 +91,14 @@ export async function POST(
       return NextResponse.json(
         { error: 'Guest not found' },
         { status: 404 }
+      );
+    }
+
+    // Check if already promoted
+    if (guestResult.rows[0].promoted_to_member_id !== null) {
+      return NextResponse.json(
+        { error: 'Guest has already been promoted to member' },
+        { status: 400 }
       );
     }
 
@@ -80,14 +110,16 @@ export async function POST(
       args: [guestName],
     });
 
-    // Optionally delete the guest
+    const newMemberId = Number(memberResult.lastInsertRowid);
+
+    // Lock the guest by setting promoted_to_member_id instead of deleting
     await db.execute({
-      sql: 'DELETE FROM guests WHERE id = ?',
-      args: [guestId],
+      sql: 'UPDATE guests SET promoted_to_member_id = ? WHERE id = ?',
+      args: [newMemberId, guestId],
     });
 
     return NextResponse.json({
-      id: Number(memberResult.lastInsertRowid),
+      id: newMemberId,
       name: guestName,
       balance: 0,
     }, { status: 201 });

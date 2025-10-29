@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Edit2, Trash2, UserPlus } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, UserPlus, Star, Eye, EyeOff } from 'lucide-react';
 
 interface Guest {
   id: number;
   name: string;
+  promoted_to_member_id: number | null;
+  is_active?: boolean;
 }
 
 export default function GuestsPage() {
@@ -126,30 +128,48 @@ export default function GuestsPage() {
   };
 
   const handleEdit = (guest: Guest) => {
+    if (guest.promoted_to_member_id) {
+      alert('Không thể chỉnh sửa khách đã được promote lên thành viên');
+      return;
+    }
     setEditGuest(guest);
     setName(guest.name);
     setShowAddForm(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Bạn có chắc muốn xóa khách này?')) return;
+  const handleToggleActive = async (guest: Guest) => {
+    if (guest.promoted_to_member_id) {
+      alert('Không thể thay đổi trạng thái khách đã được promote lên thành viên');
+      return;
+    }
+
+    const newStatus = !guest.is_active;
+    const action = newStatus ? 'kích hoạt' : 'vô hiệu hóa';
+    
+    if (!confirm(`Bạn có chắc muốn ${action} khách này?`)) return;
 
     try {
-      const res = await fetch(`/api/guests/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/guests/${guest.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: newStatus }),
+      });
+      
       if (!res.ok) {
         const errorData = await res.json();
-        alert(`Lỗi: ${errorData.error || 'Không thể xóa khách'}`);
+        alert(`Lỗi: ${errorData.error || `Không thể ${action} khách`}`);
         return;
       }
+      
       fetchGuests();
     } catch (error) {
-      console.error('Error deleting guest:', error);
-      alert('Có lỗi xảy ra khi xóa khách');
+      console.error('Error toggling guest active status:', error);
+      alert('Có lỗi xảy ra');
     }
   };
 
   const handleConvertToMember = async (id: number) => {
-    if (!confirm('Chuyển khách này thành thành viên?')) return;
+    if (!confirm('Chuyển khách này thành thành viên? Khách này sẽ không thể được chọn trong game nữa và sẽ hiển thị trong cột Members.')) return;
 
     try {
       const res = await fetch(`/api/guests/${id}`, { method: 'POST' });
@@ -158,7 +178,7 @@ export default function GuestsPage() {
         alert(`Lỗi: ${errorData.error || 'Không thể chuyển thành thành viên'}`);
         return;
       }
-      alert('Đã chuyển thành thành viên thành công');
+      alert('Đã chuyển thành thành viên thành công. Tên của họ giờ sẽ hiện trong cột Members.');
       fetchGuests();
     } catch (error) {
       console.error('Error converting guest:', error);
@@ -254,32 +274,62 @@ export default function GuestsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {Array.isArray(guests) && guests.map((guest) => (
-                    <tr key={guest.id} className="border-b hover:bg-gray-50">
-                      <td className="px-4 py-3">{guest.name}</td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => handleConvertToMember(guest.id)}
-                          className="text-purple-500 hover:text-purple-700 mr-3"
-                          title="Chuyển thành thành viên"
-                        >
-                          <UserPlus className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleEdit(guest)}
-                          className="text-blue-500 hover:text-blue-700 mr-3"
-                        >
-                          <Edit2 className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(guest.id)}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {Array.isArray(guests) && guests.map((guest) => {
+                    const isPromoted = guest.promoted_to_member_id !== null;
+                    const isInactive = guest.is_active === false;
+                    return (
+                      <tr key={guest.id} className={`border-b hover:bg-gray-50 ${isPromoted ? 'bg-yellow-50' : ''} ${isInactive && !isPromoted ? 'bg-gray-100 opacity-60' : ''}`}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {isPromoted && (
+                              <span title="Đã là thành viên (Membership)">
+                                <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                              </span>
+                            )}
+                            <span className={isInactive && !isPromoted ? 'text-gray-500' : ''}>
+                              {guest.name}
+                              {isInactive && !isPromoted && <span className="ml-2 text-xs text-gray-400">(Đã vô hiệu hóa)</span>}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {!isPromoted && (
+                            <button
+                              onClick={() => handleConvertToMember(guest.id)}
+                              className="text-purple-500 hover:text-purple-700 mr-3"
+                              title="Chuyển thành thành viên"
+                            >
+                              <UserPlus className="w-5 h-5" />
+                            </button>
+                          )}
+                          {!isPromoted ? (
+                            <>
+                              <button
+                                onClick={() => handleEdit(guest)}
+                                className="text-blue-500 hover:text-blue-700 mr-3"
+                                title="Chỉnh sửa"
+                              >
+                                <Edit2 className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={() => handleToggleActive(guest)}
+                                className={isInactive ? 'text-green-500 hover:text-green-700' : 'text-orange-500 hover:text-orange-700'}
+                                title={isInactive ? 'Kích hoạt lại' : 'Vô hiệu hóa'}
+                              >
+                                {isInactive ? (
+                                  <Eye className="w-5 h-5" />
+                                ) : (
+                                  <EyeOff className="w-5 h-5" />
+                                )}
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-gray-400 text-sm italic">Đã là thành viên</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -40,10 +40,12 @@ export async function DELETE(
 ) {
   try {
     const id = parseInt(params.id);
+    const { is_active } = await request.json();
 
+    // Toggle is_active instead of deleting
     await db.execute({
-      sql: 'DELETE FROM members WHERE id = ?',
-      args: [id],
+      sql: 'UPDATE members SET is_active = ? WHERE id = ?',
+      args: [is_active ? 1 : 0, id],
     });
 
     return NextResponse.json({ success: true });

@@ -30,7 +30,7 @@ export async function GET() {
       SELECT * FROM games ORDER BY date DESC, created_at DESC
     `);
     
-    const games: Game[] = result.rows.map((row) => ({
+    const games: Game[] = result.rows.map((row: any) => ({
       id: Number(row.id),
       date: String(row.date),
       note: String(row.note || ''),
@@ -58,20 +58,51 @@ export async function GET() {
       }));
       game.members = members;
 
+      // Get guests, but also check if any were promoted to members
       const guestsResult = await db.execute({
         sql: `
-          SELECT g.id, g.name
+          SELECT 
+            g.id, 
+            g.name, 
+            g.promoted_to_member_id, 
+            m.id as member_id, 
+            m.name as member_name,
+            m.color as member_color,
+            m.letter as member_letter
           FROM game_guests gg
           JOIN guests g ON gg.guest_id = g.id
+          LEFT JOIN members m ON g.promoted_to_member_id = m.id
           WHERE gg.game_id = ?
         `,
         args: [game.id],
       });
-      const guests: GameGuest[] = guestsResult.rows.map((row: any) => ({
-        id: Number(row.id),
-        name: String(row.name),
-      }));
-      game.guests = guests;
+      
+      // Separate promoted guests (should be in members column) and active guests
+      const activeGuests: GameGuest[] = [];
+      
+      guestsResult.rows.forEach((row: any) => {
+        if (row.promoted_to_member_id !== null && row.member_id) {
+          // If promoted, add to members list instead
+          const existingMember = game.members?.find((m: any) => m.id === Number(row.member_id));
+          if (!existingMember) {
+            // Add to members if not already there
+            if (!game.members) game.members = [];
+            game.members.push({
+              id: Number(row.member_id),
+              name: String(row.member_name),
+              color: row.member_color ? String(row.member_color) : undefined,
+              letter: row.member_letter ? String(row.member_letter) : undefined,
+            });
+          }
+        } else {
+          activeGuests.push({
+            id: Number(row.id),
+            name: String(row.name),
+          });
+        }
+      });
+      
+      game.guests = activeGuests;
     }
 
     return NextResponse.json(games);
@@ -95,7 +126,57 @@ export async function POST(request: NextRequest) {
     }
 
     const memberIds = member_ids || [];
-    const guestIds = guest_ids || [];
+    let guestIds = guest_ids || [];
+
+    // Filter out promoted guests and inactive guests
+    if (guestIds.length > 0) {
+      const guestCheckResult = await db.execute({
+        sql: 'SELECT id, promoted_to_member_id, is_active FROM guests WHERE id IN (' + guestIds.map(() => '?').join(',') + ')',
+        args: guestIds,
+      });
+      
+      const promotedGuestIds = guestCheckResult.rows
+        .filter((row: any) => row.promoted_to_member_id !== null)
+        .map((row: any) => Number(row.id));
+      
+      const inactiveGuestIds = guestCheckResult.rows
+        .filter((row: any) => row.is_active === 0 || row.is_active === null)
+        .map((row: any) => Number(row.id));
+      
+      if (promotedGuestIds.length > 0) {
+        return NextResponse.json(
+          { error: 'Cannot select guests that have been promoted to members' },
+          { status: 400 }
+        );
+      }
+
+      if (inactiveGuestIds.length > 0) {
+        return NextResponse.json(
+          { error: 'Cannot select inactive guests' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Check inactive members
+    if (memberIds.length > 0) {
+      const memberCheckResult = await db.execute({
+        sql: 'SELECT id, is_active FROM members WHERE id IN (' + memberIds.map(() => '?').join(',') + ')',
+        args: memberIds,
+      });
+      
+      const inactiveMemberIds = memberCheckResult.rows
+        .filter((row: any) => row.is_active === 0 || row.is_active === null)
+        .map((row: any) => Number(row.id));
+      
+      if (inactiveMemberIds.length > 0) {
+        return NextResponse.json(
+          { error: 'Cannot select inactive members' },
+          { status: 400 }
+        );
+      }
+    }
+
     const totalParticipants = memberIds.length + guestIds.length;
 
     if (totalParticipants === 0) {

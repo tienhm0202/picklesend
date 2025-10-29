@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Edit2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Edit2, Trash2, Eye, EyeOff } from 'lucide-react';
 import Avatar, { generateLetter, defaultColors, generateColor } from '@/components/Avatar';
 
 interface Member {
@@ -11,6 +11,7 @@ interface Member {
   balance: number;
   color?: string;
   letter?: string;
+  is_active?: boolean;
 }
 
 export default function MembersPage() {
@@ -149,14 +150,28 @@ export default function MembersPage() {
     setShowAddForm(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Bạn có chắc muốn xóa thành viên này?')) return;
+  const handleToggleActive = async (member: Member) => {
+    const newStatus = !member.is_active;
+    const action = newStatus ? 'kích hoạt' : 'vô hiệu hóa';
+    
+    if (!confirm(`Bạn có chắc muốn ${action} thành viên này?`)) return;
 
     try {
-      await fetch(`/api/members/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/members/${member.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: newStatus }),
+      });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        alert(`Lỗi: ${errorData.error || `Không thể ${action} thành viên`}`);
+        return;
+      }
+      
       fetchMembers();
     } catch (error) {
-      console.error('Error deleting member:', error);
+      console.error('Error toggling member active status:', error);
       alert('Có lỗi xảy ra');
     }
   };
@@ -305,7 +320,7 @@ export default function MembersPage() {
                 </thead>
                 <tbody>
                   {Array.isArray(members) && members.map((member) => (
-                    <tr key={member.id} className="border-b hover:bg-gray-50">
+                    <tr key={member.id} className={`border-b hover:bg-gray-50 ${member.is_active === false ? 'bg-gray-100 opacity-60' : ''}`}>
                       <td className="px-4 py-3">
                         <Link
                           href={`/members/${member.id}`}
@@ -317,8 +332,9 @@ export default function MembersPage() {
                             letter={member.letter}
                             size={40}
                           />
-                          <span className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer">
+                          <span className={`font-medium ${member.is_active === false ? 'text-gray-500' : 'text-blue-600 hover:text-blue-800'} cursor-pointer`}>
                             {member.name}
+                            {member.is_active === false && <span className="ml-2 text-xs text-gray-400">(Đã vô hiệu hóa)</span>}
                           </span>
                         </Link>
                       </td>
@@ -332,14 +348,20 @@ export default function MembersPage() {
                         <button
                           onClick={() => handleEdit(member)}
                           className="text-blue-500 hover:text-blue-700 mr-3"
+                          title="Chỉnh sửa"
                         >
                           <Edit2 className="w-5 h-5" />
                         </button>
                         <button
-                          onClick={() => handleDelete(member.id)}
-                          className="text-red-500 hover:text-red-700"
+                          onClick={() => handleToggleActive(member)}
+                          className={member.is_active === false ? 'text-green-500 hover:text-green-700' : 'text-orange-500 hover:text-orange-700'}
+                          title={member.is_active === false ? 'Kích hoạt lại' : 'Vô hiệu hóa'}
                         >
-                          <Trash2 className="w-5 h-5" />
+                          {member.is_active === false ? (
+                            <Eye className="w-5 h-5" />
+                          ) : (
+                            <EyeOff className="w-5 h-5" />
+                          )}
                         </button>
                       </td>
                     </tr>

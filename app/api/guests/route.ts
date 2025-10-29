@@ -7,6 +7,8 @@ export async function GET() {
     const guests = result.rows.map((row) => ({
       id: Number(row.id),
       name: String(row.name),
+      promoted_to_member_id: row.promoted_to_member_id ? Number(row.promoted_to_member_id) : null,
+      is_active: row.is_active !== undefined ? Boolean(row.is_active) : true,
       created_at: String(row.created_at),
     }));
 
