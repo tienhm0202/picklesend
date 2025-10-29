@@ -58,6 +58,22 @@ export async function GET(
     });
     const totalSpent = Number(paymentsResult.rows[0]?.total || 0);
 
+    // Get total covers (amount covered for guests)
+    let totalCovers = 0;
+    try {
+      const coversResult = await db.execute({
+        sql: `
+          SELECT COALESCE(SUM(amount), 0) as total 
+          FROM payment_covers 
+          WHERE member_id = ?
+        `,
+        args: [memberId],
+      });
+      totalCovers = Number(coversResult.rows[0]?.total || 0);
+    } catch (e: any) {
+      // Table might not exist yet
+    }
+
     // Get games this member participated in with details
     const gamesResult = await db.execute({
       sql: `
@@ -92,7 +108,8 @@ export async function GET(
       balance,
       depositCount,
       totalDeposits,
-      totalSpent,
+      totalSpent: totalSpent + totalCovers, // Include covers in total spent
+      totalCovers,
       games,
     });
   } catch (error: any) {

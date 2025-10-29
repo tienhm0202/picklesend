@@ -21,6 +21,22 @@ export async function calculateMemberBalance(
   });
   const totalPayments = payments.rows[0]?.total || 0;
 
-  return Number(totalDeposits) - Number(totalPayments);
+  // Get all payment covers (amount members covered for guests)
+  let totalCovers = 0;
+  try {
+    const covers = await db.execute({
+      sql: `
+        SELECT COALESCE(SUM(amount), 0) as total 
+        FROM payment_covers 
+        WHERE member_id = ?
+      `,
+      args: [memberId],
+    });
+    totalCovers = Number(covers.rows[0]?.total || 0);
+  } catch (e: any) {
+    // Table might not exist yet, ignore
+  }
+
+  return Number(totalDeposits) - Number(totalPayments) - totalCovers;
 }
 

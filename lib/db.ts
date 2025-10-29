@@ -205,5 +205,18 @@ export async function initDatabase() {
   } catch (e: any) {
     // Column already exists, ignore
   }
+
+  // Create Payment Covers table (for members covering guest payments)
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS payment_covers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      payment_id INTEGER NOT NULL,
+      member_id INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (payment_id) REFERENCES need_payments(id),
+      FOREIGN KEY (member_id) REFERENCES members(id)
+    )
+  `);
 }
 

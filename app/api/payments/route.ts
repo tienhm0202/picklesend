@@ -20,7 +20,7 @@ export async function GET() {
       ORDER BY np.is_paid ASC, g.date DESC
     `);
     
-    const payments = result.rows.map((row) => ({
+    const payments = result.rows.map((row: any) => ({
       id: Number(row.id),
       game_id: Number(row.game_id),
       game_date: String(row.game_date),
@@ -36,6 +36,30 @@ export async function GET() {
       paid_from_club_fund: Boolean(row.paid_from_club_fund || false),
       created_at: String(row.created_at),
     }));
+
+    // Get covers for each payment
+    for (const payment of payments) {
+      try {
+        const coversResult = await db.execute({
+          sql: `
+            SELECT pc.*, m.name as member_name
+            FROM payment_covers pc
+            JOIN members m ON pc.member_id = m.id
+            WHERE pc.payment_id = ?
+          `,
+          args: [payment.id],
+        });
+        (payment as any).covers = coversResult.rows.map((row: any) => ({
+          id: Number(row.id),
+          member_id: Number(row.member_id),
+          member_name: String(row.member_name),
+          amount: Number(row.amount),
+        }));
+      } catch (e: any) {
+        // Table might not exist yet
+        (payment as any).covers = [];
+      }
+    }
 
     return NextResponse.json(payments);
   } catch (error: any) {
