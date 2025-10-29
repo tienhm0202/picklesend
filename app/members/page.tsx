@@ -307,15 +307,20 @@ export default function MembersPage() {
                   {Array.isArray(members) && members.map((member) => (
                     <tr key={member.id} className="border-b hover:bg-gray-50">
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
+                        <Link
+                          href={`/members/${member.id}`}
+                          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                        >
                           <Avatar
                             name={member.name}
                             color={member.color}
                             letter={member.letter}
                             size={40}
                           />
-                          <span className="font-medium">{member.name}</span>
-                        </div>
+                          <span className="font-medium text-blue-600 hover:text-blue-800 cursor-pointer">
+                            {member.name}
+                          </span>
+                        </Link>
                       </td>
                       <td className="px-4 py-3">
                         <span className={member.balance >= 0 ? 'text-green-600' : 'text-red-600'}>
