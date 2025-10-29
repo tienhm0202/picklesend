@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 interface Member {
@@ -18,6 +19,7 @@ interface Deposit {
 }
 
 export default function DepositsPage() {
+  const router = useRouter();
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,8 +29,25 @@ export default function DepositsPage() {
   const [amount, setAmount] = useState('');
 
   useEffect(() => {
+    checkAdmin();
     fetchData();
   }, []);
+
+  const checkAdmin = async () => {
+    try {
+      const res = await fetch('/api/admin/login');
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.isAdmin) {
+          router.push('/');
+        }
+      } else {
+        router.push('/');
+      }
+    } catch (error) {
+      router.push('/');
+    }
+  };
 
   const fetchData = async () => {
     try {

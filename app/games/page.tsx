@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 
 interface Member {
@@ -25,6 +26,7 @@ interface Game {
 }
 
 export default function GamesPage() {
+  const router = useRouter();
   const [games, setGames] = useState<Game[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
@@ -38,8 +40,25 @@ export default function GamesPage() {
   const [selectedGuests, setSelectedGuests] = useState<number[]>([]);
 
   useEffect(() => {
+    checkAdmin();
     fetchData();
   }, []);
+
+  const checkAdmin = async () => {
+    try {
+      const res = await fetch('/api/admin/login');
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.isAdmin) {
+          router.push('/');
+        }
+      } else {
+        router.push('/');
+      }
+    } catch (error) {
+      router.push('/');
+    }
+  };
 
   const fetchData = async () => {
     try {

@@ -52,14 +52,21 @@ Vercel sẽ tự động detect Next.js, bạn chỉ cần:
 Trước khi deploy, thêm biến môi trường:
 
 1. Trong màn hình cấu hình project, scroll xuống phần **"Environment Variables"**
-2. Thêm biến:
+2. Thêm các biến sau:
 
-   **Name:** `TURSO_AUTH_TOKEN`  
-   **Value:** `eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NjE3MzA2ODEsImlkIjoiMjYxMjA0YTgtZmQ5ZS00Y2ZlLTgyYzAtNGI3OWMzNTVkNjM2IiwicmlkIjoiYmYzMDI3OGEtNzMyNy00NWQxLWFhZWEtNzIxMTRhY2UwNGJlIn0.TkBUeQYuBmu_eRIGoPp51JWsrql5TQAY2_y6mgvxLUTmAevQhLaja6UJIeYl6OoxJOGOy-FltOE2rf2tWSxBDg`
+   **Biến 1:**
+   - **Name:** `TURSO_AUTH_TOKEN`  
+   - **Value:** (Turso token)
+   
+   **Biến 2:**
+   - **Name:** `ADMIN_PASS`
+   - **Value:** (Nhập password bạn muốn dùng để login vào /superadmin)
 
 3. Chọn môi trường: **Production**, **Preview**, và **Development** (hoặc chỉ Production)
 
-**Lưu ý:** Nếu bạn có auth token khác, hãy thay thế giá trị trên.
+**Lưu ý:** 
+- Nếu bạn có auth token khác, hãy thay thế giá trị trên
+- `ADMIN_PASS` là password để truy cập trang admin và hiển thị các tính năng quản lý (Nạp tiền, Game, Cần thu)
 
 ## Bước 6: Deploy
 

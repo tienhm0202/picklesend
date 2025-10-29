@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Users, UserPlus, DollarSign, GamepadIcon, Receipt, Wallet, AlertCircle, FileText } from 'lucide-react';
+import { Users, UserPlus, DollarSign, GamepadIcon, Receipt, Wallet, AlertCircle, FileText, LogOut } from 'lucide-react';
 
 interface Stats {
   totalFund: number;
@@ -16,12 +16,36 @@ interface Stats {
 export default function Home() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     // Initialize database on first load
     fetch('/api/init', { method: 'POST' });
     fetchStats();
+    checkAdmin();
   }, []);
+
+  const checkAdmin = async () => {
+    try {
+      const res = await fetch('/api/admin/login');
+      if (res.ok) {
+        const data = await res.json();
+        setIsAdmin(data.isAdmin || false);
+      }
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/admin/logout', { method: 'POST' });
+      setIsAdmin(false);
+      window.location.reload();
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -47,25 +71,46 @@ export default function Home() {
     }
   };
 
-  const menuItems = [
+  // Public menu items (visible to everyone)
+  const publicMenuItems = [
     { href: '/members', label: 'Thành viên', icon: Users, color: 'blue' },
     { href: '/guests', label: 'Khách', icon: UserPlus, color: 'green' },
+    { href: '/report', label: 'Report', icon: FileText, color: 'indigo' },
+  ];
+
+  // Admin-only menu items
+  const adminMenuItems = [
     { href: '/deposits', label: 'Nạp tiền', icon: DollarSign, color: 'purple' },
     { href: '/games', label: 'Game', icon: GamepadIcon, color: 'orange' },
     { href: '/payments', label: 'Cần thu', icon: Receipt, color: 'red' },
-    { href: '/report', label: 'Report', icon: FileText, color: 'indigo' },
   ];
+
+  // Combine menu items based on admin status
+  const menuItems = isAdmin 
+    ? [...publicMenuItems, ...adminMenuItems]
+    : publicMenuItems;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-16">
-        <div className="text-center mb-12">
+        <div className="text-center mb-12 relative">
           <h1 className="text-5xl font-bold text-gray-900 mb-4">
             PickleSpend
           </h1>
           <p className="text-xl text-gray-600">
             Quản lý chi tiêu và thanh toán cho nhóm chơi Pickleball
           </p>
+          {isAdmin && (
+            <div className="absolute top-0 right-0">
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout Admin
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Stats Section */}

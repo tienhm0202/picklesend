@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ArrowLeft, CheckCircle2, Circle } from 'lucide-react';
 
 interface Payment {
@@ -18,13 +19,31 @@ interface Payment {
 }
 
 export default function PaymentsPage() {
+  const router = useRouter();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unpaid' | 'paid'>('unpaid');
 
   useEffect(() => {
+    checkAdmin();
     fetchPayments();
   }, []);
+
+  const checkAdmin = async () => {
+    try {
+      const res = await fetch('/api/admin/login');
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.isAdmin) {
+          router.push('/');
+        }
+      } else {
+        router.push('/');
+      }
+    } catch (error) {
+      router.push('/');
+    }
+  };
 
   const fetchPayments = async () => {
     try {
