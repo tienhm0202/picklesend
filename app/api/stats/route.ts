@@ -21,6 +21,7 @@ export async function GET() {
     }
 
     try {
+      // Sum of paid payments from members (not from club fund)
       const paidPaymentsResult = await db.execute(`
         SELECT COALESCE(SUM(amount), 0) as total 
         FROM need_payments 
@@ -34,6 +35,30 @@ export async function GET() {
       }
     }
 
+    // Calculate club fund: donations - payments paid from club fund
+    let clubFundDonations = 0;
+    let clubFundPayments = 0;
+    try {
+      const clubDonationsResult = await db.execute(
+        'SELECT COALESCE(SUM(amount), 0) as total FROM deposits WHERE member_id IS NULL'
+      );
+      clubFundDonations = Number(clubDonationsResult.rows[0]?.total || 0);
+    } catch (error: any) {
+      // Ignore errors
+    }
+
+    try {
+      const clubPaymentsResult = await db.execute(`
+        SELECT COALESCE(SUM(amount), 0) as total 
+        FROM need_payments 
+        WHERE paid_from_club_fund = 1 AND is_paid = 1
+      `);
+      clubFundPayments = Number(clubPaymentsResult.rows[0]?.total || 0);
+    } catch (error: any) {
+      // Ignore errors
+    }
+
+    const clubFund = clubFundDonations - clubFundPayments;
     const totalFund = totalDeposits - totalPaidPayments;
 
     // Get all members with balance calculation
@@ -41,7 +66,7 @@ export async function GET() {
     
     try {
       const membersResult = await db.execute('SELECT * FROM members ORDER BY name');
-      members = membersResult.rows.map((row) => ({
+      members = membersResult.rows.map((row: any) => ({
         id: Number(row.id),
         name: String(row.name),
         balance: Number(row.balance),
@@ -70,6 +95,7 @@ export async function GET() {
 
     return NextResponse.json({
       totalFund,
+      clubFund,
       lowBalanceMembers: lowBalanceMembers.map((m) => ({
         id: m.id,
         name: m.name,

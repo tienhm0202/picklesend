@@ -11,7 +11,8 @@ export async function GET() {
         g.amount_san,
         g.amount_water,
         m.name as member_name,
-        gu.name as guest_name
+        gu.name as guest_name,
+        COALESCE(np.paid_from_club_fund, 0) as paid_from_club_fund
       FROM need_payments np
       JOIN games g ON np.game_id = g.id
       LEFT JOIN members m ON np.member_id = m.id
@@ -32,6 +33,7 @@ export async function GET() {
       guest_name: row.guest_name ? String(row.guest_name) : null,
       amount: Number(row.amount),
       is_paid: Boolean(row.is_paid),
+      paid_from_club_fund: Boolean(row.paid_from_club_fund || false),
       created_at: String(row.created_at),
     }));
 

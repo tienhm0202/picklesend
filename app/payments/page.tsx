@@ -16,6 +16,7 @@ interface Payment {
   guest_name: string | null;
   amount: number;
   is_paid: boolean;
+  paid_from_club_fund?: boolean;
 }
 
 export default function PaymentsPage() {
@@ -57,12 +58,19 @@ export default function PaymentsPage() {
     }
   };
 
-  const handleTogglePaid = async (id: number, currentStatus: boolean) => {
+  const handleTogglePaid = async (id: number, currentStatus: boolean, isGuestPayment: boolean, paidFromClubFund: boolean = false) => {
     try {
+      const newStatus = !currentStatus;
+      // Only allow paid_from_club_fund for guest payments when marking as paid
+      const useClubFund = isGuestPayment && newStatus && paidFromClubFund;
+
       await fetch(`/api/payments/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_paid: !currentStatus }),
+        body: JSON.stringify({
+          is_paid: newStatus,
+          paid_from_club_fund: useClubFund,
+        }),
       });
       fetchPayments();
     } catch (error) {
@@ -167,15 +175,22 @@ export default function PaymentsPage() {
                         {payment.member_name || payment.guest_name}
                       </td>
                       <td className="px-4 py-3">
-                        <span
-                          className={`px-2 py-1 rounded text-sm ${
-                            payment.member_id
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-green-100 text-green-800'
-                          }`}
-                        >
-                          {payment.member_id ? 'Thành viên' : 'Khách'}
-                        </span>
+                        <div className="flex flex-col gap-1">
+                          <span
+                            className={`px-2 py-1 rounded text-sm ${
+                              payment.member_id
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-green-100 text-green-800'
+                            }`}
+                          >
+                            {payment.member_id ? 'Thành viên' : 'Khách'}
+                          </span>
+                          {payment.paid_from_club_fund && (
+                            <span className="px-2 py-1 rounded text-xs bg-purple-100 text-purple-800">
+                              Từ quỹ CLB
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">
                         {payment.game_note || '-'}
@@ -191,19 +206,40 @@ export default function PaymentsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <button
-                          onClick={() => handleTogglePaid(payment.id, payment.is_paid)}
-                          className={`p-2 rounded-full hover:bg-gray-200 ${
-                            payment.is_paid ? 'text-green-600' : 'text-gray-400'
-                          }`}
-                          title={payment.is_paid ? 'Đánh dấu chưa thu' : 'Đánh dấu đã thu'}
-                        >
-                          {payment.is_paid ? (
-                            <CheckCircle2 className="w-6 h-6" />
-                          ) : (
-                            <Circle className="w-6 h-6" />
-                          )}
-                        </button>
+                        {!payment.is_paid && !payment.member_id ? (
+                          // Guest payment - show options to pay from club fund or regular payment
+                          <div className="flex flex-col gap-2 items-center">
+                            <button
+                              onClick={() => handleTogglePaid(payment.id, payment.is_paid, true, false)}
+                              className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg"
+                              title="Đánh dấu đã thu (khách tự trả)"
+                            >
+                              Đã thu
+                            </button>
+                            <button
+                              onClick={() => handleTogglePaid(payment.id, payment.is_paid, true, true)}
+                              className="px-3 py-1 bg-purple-500 hover:bg-purple-600 text-white text-sm rounded-lg"
+                              title="Thanh toán từ quỹ CLB"
+                            >
+                              Trừ quỹ CLB
+                            </button>
+                          </div>
+                        ) : (
+                          // Already paid or member payment
+                          <button
+                            onClick={() => handleTogglePaid(payment.id, payment.is_paid, !!payment.guest_id, payment.paid_from_club_fund || false)}
+                            className={`p-2 rounded-full hover:bg-gray-200 ${
+                              payment.is_paid ? 'text-green-600' : 'text-gray-400'
+                            }`}
+                            title={payment.is_paid ? 'Đánh dấu chưa thu' : 'Đánh dấu đã thu'}
+                          >
+                            {payment.is_paid ? (
+                              <CheckCircle2 className="w-6 h-6" />
+                            ) : (
+                              <Circle className="w-6 h-6" />
+                            )}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}

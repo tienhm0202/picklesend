@@ -6,6 +6,7 @@ import { Users, UserPlus, DollarSign, GamepadIcon, Receipt, Wallet, AlertCircle,
 
 interface Stats {
   totalFund: number;
+  clubFund?: number;
   lowBalanceMembers: Array<{
     id: number;
     name: string;
@@ -114,7 +115,7 @@ export default function Home() {
         </div>
 
         {/* Stats Section */}
-        <div className="max-w-5xl mx-auto mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="max-w-5xl mx-auto mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Total Fund Card */}
           <div className="bg-white rounded-lg shadow-lg p-6">
             <div className="flex items-center justify-between mb-4">
@@ -126,6 +127,21 @@ export default function Home() {
             ) : (
               <p className="text-3xl font-bold text-blue-600">
                 {stats?.totalFund?.toLocaleString('vi-VN') || '0'} đ
+              </p>
+            )}
+          </div>
+
+          {/* Club Fund Card */}
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">Tổng Donate</h2>
+              <Wallet className="w-8 h-8 text-purple-500" />
+            </div>
+            {loading ? (
+              <p className="text-gray-500">Đang tải...</p>
+            ) : (
+              <p className="text-3xl font-bold text-purple-600">
+                {stats?.clubFund?.toLocaleString('vi-VN') || '0'} đ
               </p>
             )}
           </div>

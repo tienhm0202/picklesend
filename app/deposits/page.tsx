@@ -12,10 +12,11 @@ interface Member {
 
 interface Deposit {
   id: number;
-  member_id: number;
+  member_id: number | null;
   member_name: string;
   date: string;
   amount: number;
+  is_donation?: boolean;
 }
 
 export default function DepositsPage() {
@@ -24,6 +25,7 @@ export default function DepositsPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [isDonation, setIsDonation] = useState(false);
   const [memberId, setMemberId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
   const [amount, setAmount] = useState('');
@@ -68,20 +70,22 @@ export default function DepositsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!memberId || !date || !amount) return;
+    if ((!isDonation && !memberId) || !date || !amount) return;
 
     try {
       await fetch('/api/deposits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          member_id: parseInt(memberId),
+          member_id: isDonation ? null : parseInt(memberId),
           date,
           amount: parseFloat(amount),
+          is_donation: isDonation,
         }),
       });
       setMemberId('');
       setAmount('');
+      setIsDonation(false);
       setShowAddForm(false);
       fetchData();
     } catch (error) {
@@ -124,20 +128,42 @@ export default function DepositsPage() {
 
           {showAddForm && (
             <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gray-50 rounded-lg">
+              <div className="mb-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isDonation}
+                    onChange={(e) => {
+                      setIsDonation(e.target.checked);
+                      if (e.target.checked) {
+                        setMemberId('');
+                      }
+                    }}
+                    className="w-4 h-4"
+                  />
+                  <span className="font-semibold text-purple-600">Đây là khoản donate vào quỹ CLB</span>
+                </label>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <select
-                  value={memberId}
-                  onChange={(e) => setMemberId(e.target.value)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  required
-                >
-                  <option value="">Chọn thành viên</option>
-                  {members.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.name}
-                    </option>
-                  ))}
-                </select>
+                {!isDonation ? (
+                  <select
+                    value={memberId}
+                    onChange={(e) => setMemberId(e.target.value)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    required={!isDonation}
+                  >
+                    <option value="">Chọn thành viên</option>
+                    {members.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="px-4 py-2 border-2 border-purple-300 bg-purple-50 rounded-lg flex items-center">
+                    <span className="font-semibold text-purple-700">Quỹ CLB (Donate)</span>
+                  </div>
+                )}
                 <input
                   type="date"
                   value={date}
@@ -167,6 +193,7 @@ export default function DepositsPage() {
                       setShowAddForm(false);
                       setMemberId('');
                       setAmount('');
+                      setIsDonation(false);
                     }}
                     className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2 rounded-lg"
                   >
@@ -194,8 +221,14 @@ export default function DepositsPage() {
                 </thead>
                 <tbody>
                   {deposits.map((deposit) => (
-                    <tr key={deposit.id} className="border-b hover:bg-gray-50">
-                      <td className="px-4 py-3">{deposit.member_name}</td>
+                    <tr key={deposit.id} className={`border-b hover:bg-gray-50 ${deposit.is_donation ? 'bg-purple-50' : ''}`}>
+                      <td className="px-4 py-3">
+                        {deposit.is_donation ? (
+                          <span className="font-semibold text-purple-700">{deposit.member_name}</span>
+                        ) : (
+                          deposit.member_name
+                        )}
+                      </td>
                       <td className="px-4 py-3">{new Date(deposit.date).toLocaleDateString('vi-VN')}</td>
                       <td className="px-4 py-3 text-right text-green-600 font-semibold">
                         +{deposit.amount.toLocaleString('vi-VN')} đ

@@ -127,13 +127,21 @@ export async function initDatabase() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS deposits (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      member_id INTEGER NOT NULL,
+      member_id INTEGER,
       date TEXT NOT NULL,
       amount REAL NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (member_id) REFERENCES members(id)
     )
   `);
+
+  // Add migration to allow NULL member_id (for donations)
+  try {
+    // Check if we need to alter the table
+    await db.execute(`PRAGMA table_info(deposits)`);
+  } catch (e: any) {
+    // Table doesn't exist yet, will be created with new schema
+  }
 
   // Create Games table
   await db.execute(`
@@ -182,6 +190,7 @@ export async function initDatabase() {
       member_id INTEGER,
       amount REAL NOT NULL,
       is_paid INTEGER DEFAULT 0,
+      paid_from_club_fund INTEGER DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (game_id) REFERENCES games(id),
       FOREIGN KEY (guest_id) REFERENCES guests(id),
@@ -189,5 +198,12 @@ export async function initDatabase() {
       CHECK ((guest_id IS NOT NULL AND member_id IS NULL) OR (guest_id IS NULL AND member_id IS NOT NULL))
     )
   `);
+
+  // Add paid_from_club_fund column if it doesn't exist (for existing databases)
+  try {
+    await db.execute(`ALTER TABLE need_payments ADD COLUMN paid_from_club_fund INTEGER DEFAULT 0`);
+  } catch (e: any) {
+    // Column already exists, ignore
+  }
 }
 
