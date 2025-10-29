@@ -44,19 +44,21 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Parse request body once
+  const body = await request.json();
+  const { name, color, letter } = body;
+  
+  if (!name || name.trim() === '') {
+    return NextResponse.json(
+      { error: 'Name is required' },
+      { status: 400 }
+    );
+  }
+
+  const trimmedName = name.trim();
+  const memberLetter = letter || generateLetter(trimmedName);
+
   try {
-    const { name, color, letter } = await request.json();
-    
-    if (!name || name.trim() === '') {
-      return NextResponse.json(
-        { error: 'Name is required' },
-        { status: 400 }
-      );
-    }
-
-    const trimmedName = name.trim();
-    const memberLetter = letter || generateLetter(trimmedName);
-
     const result = await db.execute({
       sql: 'INSERT INTO members (name, color, letter) VALUES (?, ?, ?)',
       args: [trimmedName, color || null, memberLetter],
@@ -75,9 +77,6 @@ export async function POST(request: NextRequest) {
       try {
         await initDatabase();
         // Retry after initialization
-        const trimmedName = name.trim();
-        const memberLetter = letter || generateLetter(trimmedName);
-        
         const result = await db.execute({
           sql: 'INSERT INTO members (name, color, letter) VALUES (?, ?, ?)',
           args: [trimmedName, color || null, memberLetter],
