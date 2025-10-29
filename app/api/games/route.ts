@@ -1,13 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+interface GameMember {
+  id: number;
+  name: string;
+  color?: string;
+  letter?: string;
+}
+
+interface GameGuest {
+  id: number;
+  name: string;
+}
+
+interface Game {
+  id: number;
+  date: string;
+  note: string;
+  amount_san: number;
+  amount_water: number;
+  created_at: string;
+  members?: GameMember[];
+  guests?: GameGuest[];
+}
+
 export async function GET() {
   try {
     const result = await db.execute(`
       SELECT * FROM games ORDER BY date DESC, created_at DESC
     `);
     
-    const games = result.rows.map((row) => ({
+    const games: Game[] = result.rows.map((row) => ({
       id: Number(row.id),
       date: String(row.date),
       note: String(row.note || ''),
@@ -27,12 +50,13 @@ export async function GET() {
         `,
         args: [game.id],
       });
-      game.members = membersResult.rows.map((row: any) => ({
+      const members: GameMember[] = membersResult.rows.map((row: any) => ({
         id: Number(row.id),
         name: String(row.name),
         color: row.color ? String(row.color) : undefined,
         letter: row.letter ? String(row.letter) : undefined,
       }));
+      game.members = members;
 
       const guestsResult = await db.execute({
         sql: `
@@ -43,10 +67,11 @@ export async function GET() {
         `,
         args: [game.id],
       });
-      game.guests = guestsResult.rows.map((row: any) => ({
+      const guests: GameGuest[] = guestsResult.rows.map((row: any) => ({
         id: Number(row.id),
         name: String(row.name),
       }));
+      game.guests = guests;
     }
 
     return NextResponse.json(games);
