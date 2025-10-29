@@ -17,6 +17,7 @@ interface Member {
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editMember, setEditMember] = useState<Member | null>(null);
   const [name, setName] = useState('');
@@ -24,8 +25,21 @@ export default function MembersPage() {
   const [letter, setLetter] = useState<string>('');
 
   useEffect(() => {
+    checkAdmin();
     fetchMembers();
   }, []);
+
+  const checkAdmin = async () => {
+    try {
+      const res = await fetch('/api/admin/login');
+      if (res.ok) {
+        const data = await res.json();
+        setIsAdmin(data.isAdmin || false);
+      }
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+    }
+  };
 
   const fetchMembers = async () => {
     try {
@@ -187,22 +201,24 @@ export default function MembersPage() {
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold text-gray-900">Quản lý thành viên</h1>
-            <button
-              onClick={() => {
-                setShowAddForm(!showAddForm);
-                setEditMember(null);
-                setName('');
-                setColor('');
-                setLetter('');
-              }}
-              className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Thêm thành viên
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  setShowAddForm(!showAddForm);
+                  setEditMember(null);
+                  setName('');
+                  setColor('');
+                  setLetter('');
+                }}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Thêm thành viên
+              </button>
+            )}
           </div>
 
-          {showAddForm && (
+          {isAdmin && showAddForm && (
             <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gray-50 rounded-lg">
               <div className="space-y-3">
                 {editMember ? (
@@ -315,7 +331,7 @@ export default function MembersPage() {
                   <tr>
                     <th className="px-4 py-3 text-left font-semibold">Thành viên</th>
                     <th className="px-4 py-3 text-left font-semibold">Số dư</th>
-                    <th className="px-4 py-3 text-right font-semibold">Thao tác</th>
+                    {isAdmin && <th className="px-4 py-3 text-right font-semibold">Thao tác</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -344,26 +360,28 @@ export default function MembersPage() {
                           {member.balance.toLocaleString('vi-VN')} đ
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => handleEdit(member)}
-                          className="text-blue-500 hover:text-blue-700 mr-3"
-                          title="Chỉnh sửa"
-                        >
-                          <Edit2 className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleToggleActive(member)}
-                          className={member.is_active === false ? 'text-green-500 hover:text-green-700' : 'text-orange-500 hover:text-orange-700'}
-                          title={member.is_active === false ? 'Kích hoạt lại' : 'Vô hiệu hóa'}
-                        >
-                          {member.is_active === false ? (
-                            <Eye className="w-5 h-5" />
-                          ) : (
-                            <EyeOff className="w-5 h-5" />
-                          )}
-                        </button>
-                      </td>
+                      {isAdmin && (
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => handleEdit(member)}
+                            className="text-blue-500 hover:text-blue-700 mr-3"
+                            title="Chỉnh sửa"
+                          >
+                            <Edit2 className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleToggleActive(member)}
+                            className={member.is_active === false ? 'text-green-500 hover:text-green-700' : 'text-orange-500 hover:text-orange-700'}
+                            title={member.is_active === false ? 'Kích hoạt lại' : 'Vô hiệu hóa'}
+                          >
+                            {member.is_active === false ? (
+                              <Eye className="w-5 h-5" />
+                            ) : (
+                              <EyeOff className="w-5 h-5" />
+                            )}
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

@@ -14,13 +14,27 @@ interface Guest {
 export default function GuestsPage() {
   const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editGuest, setEditGuest] = useState<Guest | null>(null);
   const [name, setName] = useState('');
 
   useEffect(() => {
+    checkAdmin();
     fetchGuests();
   }, []);
+
+  const checkAdmin = async () => {
+    try {
+      const res = await fetch('/api/admin/login');
+      if (res.ok) {
+        const data = await res.json();
+        setIsAdmin(data.isAdmin || false);
+      }
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+    }
+  };
 
   const fetchGuests = async () => {
     try {
@@ -197,20 +211,22 @@ export default function GuestsPage() {
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold text-gray-900">Quản lý khách</h1>
-            <button
-              onClick={() => {
-                setShowAddForm(!showAddForm);
-                setEditGuest(null);
-                setName('');
-              }}
-              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Thêm khách
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => {
+                  setShowAddForm(!showAddForm);
+                  setEditGuest(null);
+                  setName('');
+                }}
+                className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg flex items-center"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Thêm khách
+              </button>
+            )}
           </div>
 
-          {showAddForm && (
+          {isAdmin && showAddForm && (
             <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gray-50 rounded-lg">
               <div className="space-y-3">
                 {editGuest ? (
@@ -270,7 +286,7 @@ export default function GuestsPage() {
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="px-4 py-3 text-left font-semibold">Tên</th>
-                    <th className="px-4 py-3 text-right font-semibold">Thao tác</th>
+                    {isAdmin && <th className="px-4 py-3 text-right font-semibold">Thao tác</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -292,41 +308,43 @@ export default function GuestsPage() {
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right">
-                          {!isPromoted && (
-                            <button
-                              onClick={() => handleConvertToMember(guest.id)}
-                              className="text-purple-500 hover:text-purple-700 mr-3"
-                              title="Chuyển thành thành viên"
-                            >
-                              <UserPlus className="w-5 h-5" />
-                            </button>
-                          )}
-                          {!isPromoted ? (
-                            <>
+                        {isAdmin && (
+                          <td className="px-4 py-3 text-right">
+                            {!isPromoted && (
                               <button
-                                onClick={() => handleEdit(guest)}
-                                className="text-blue-500 hover:text-blue-700 mr-3"
-                                title="Chỉnh sửa"
+                                onClick={() => handleConvertToMember(guest.id)}
+                                className="text-purple-500 hover:text-purple-700 mr-3"
+                                title="Chuyển thành thành viên"
                               >
-                                <Edit2 className="w-5 h-5" />
+                                <UserPlus className="w-5 h-5" />
                               </button>
-                              <button
-                                onClick={() => handleToggleActive(guest)}
-                                className={isInactive ? 'text-green-500 hover:text-green-700' : 'text-orange-500 hover:text-orange-700'}
-                                title={isInactive ? 'Kích hoạt lại' : 'Vô hiệu hóa'}
-                              >
-                                {isInactive ? (
-                                  <Eye className="w-5 h-5" />
-                                ) : (
-                                  <EyeOff className="w-5 h-5" />
-                                )}
-                              </button>
-                            </>
-                          ) : (
-                            <span className="text-gray-400 text-sm italic">Đã là thành viên</span>
-                          )}
-                        </td>
+                            )}
+                            {!isPromoted ? (
+                              <>
+                                <button
+                                  onClick={() => handleEdit(guest)}
+                                  className="text-blue-500 hover:text-blue-700 mr-3"
+                                  title="Chỉnh sửa"
+                                >
+                                  <Edit2 className="w-5 h-5" />
+                                </button>
+                                <button
+                                  onClick={() => handleToggleActive(guest)}
+                                  className={isInactive ? 'text-green-500 hover:text-green-700' : 'text-orange-500 hover:text-orange-700'}
+                                  title={isInactive ? 'Kích hoạt lại' : 'Vô hiệu hóa'}
+                                >
+                                  {isInactive ? (
+                                    <Eye className="w-5 h-5" />
+                                  ) : (
+                                    <EyeOff className="w-5 h-5" />
+                                  )}
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-gray-400 text-sm italic">Đã là thành viên</span>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
