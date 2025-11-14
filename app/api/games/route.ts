@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
 
     const gameId = Number(gameResult.lastInsertRowid);
     const totalAmount = amount_san + amount_water;
-    const amountPerPerson = totalAmount / totalParticipants;
+    const amountPerPerson = Math.ceil(totalAmount / totalParticipants);
 
     // Add game members
     for (const memberId of memberIds) {

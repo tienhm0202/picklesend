@@ -294,7 +294,7 @@ export default function GamesPage() {
               {games.map((game) => {
                 const totalAmount = game.amount_san + game.amount_water;
                 const totalParticipants = (game.members?.length || 0) + (game.guests?.length || 0);
-                const amountPerPerson = totalParticipants > 0 ? totalAmount / totalParticipants : 0;
+                const amountPerPerson = totalParticipants > 0 ? Math.ceil(totalAmount / totalParticipants) : 0;
 
                 return (
                   <div key={game.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
