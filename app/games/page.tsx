@@ -91,7 +91,7 @@ export default function GamesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!date || !amountSan || !amountWater) return;
+    if (!date || amountSan === '' || amountWater === '') return;
     if (selectedMembers.length === 0 && selectedGuests.length === 0) {
       alert('Vui lòng chọn ít nhất một thành viên hoặc khách');
       return;

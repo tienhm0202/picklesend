@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
   try {
     const { date, note, amount_san, amount_water, member_ids, guest_ids } = await request.json();
     
-    if (!date || !amount_san || !amount_water) {
+    if (!date || amount_san === null || amount_san === undefined || amount_water === null || amount_water === undefined) {
       return NextResponse.json(
         { error: 'date, amount_san, and amount_water are required' },
         { status: 400 }
