@@ -4,19 +4,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { formatNumberInput, parseFormattedNumber } from '@/lib/utils';
 
-interface Member {
-  id: number;
-  name: string;
-  is_active?: boolean;
-}
-
-interface Guest {
-  id: number;
-  name: string;
-  promoted_to_member_id: number | null;
-  is_active?: boolean;
-}
 
 interface Game {
   id: number;
@@ -24,23 +13,18 @@ interface Game {
   note: string;
   amount_san: number;
   amount_water: number;
-  members?: { id: number; name: string }[];
-  guests?: { id: number; name: string }[];
 }
 
 export default function GamesPage() {
   const router = useRouter();
   const [games, setGames] = useState<Game[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [guests, setGuests] = useState<Guest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState('');
   const [note, setNote] = useState('');
   const [amountSan, setAmountSan] = useState('');
   const [amountWater, setAmountWater] = useState('');
-  const [selectedMembers, setSelectedMembers] = useState<number[]>([]);
-  const [selectedGuests, setSelectedGuests] = useState<number[]>([]);
+  const [clubFundBalance, setClubFundBalance] = useState<number | null>(null);
 
   useEffect(() => {
     checkAdmin();
@@ -65,23 +49,14 @@ export default function GamesPage() {
 
   const fetchData = async () => {
     try {
-      const [gamesRes, membersRes, guestsRes] = await Promise.all([
+      const [gamesRes, statsRes] = await Promise.all([
         fetch('/api/games'),
-        fetch('/api/members'),
-        fetch('/api/guests'),
+        fetch('/api/stats'),
       ]);
       const gamesData = await gamesRes.json();
-      const membersData = await membersRes.json();
-      const guestsData = await guestsRes.json();
-      // Filter out promoted guests and inactive guests from the list
-      const activeGuests = guestsData.filter(
-        (guest: Guest) => guest.promoted_to_member_id === null && guest.is_active !== false
-      );
-      // Filter out inactive members from the list
-      const activeMembers = membersData.filter((member: Member) => member.is_active !== false);
+      const statsData = await statsRes.json();
       setGames(gamesData);
-      setMembers(activeMembers);
-      setGuests(activeGuests);
+      setClubFundBalance(statsData.clubFund || 0);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -91,31 +66,47 @@ export default function GamesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!date || amountSan === '' || amountWater === '') return;
-    if (selectedMembers.length === 0 && selectedGuests.length === 0) {
-      alert('Vui lòng chọn ít nhất một thành viên hoặc khách');
+    if (amountSan === '' || amountWater === '') {
+      alert('Vui lòng nhập tiền sân và tiền nước');
+      return;
+    }
+
+    const parsedAmountSan = parseFormattedNumber(amountSan);
+    const parsedAmountWater = parseFormattedNumber(amountWater);
+
+    if (parsedAmountSan < 0 || parsedAmountWater < 0) {
+      alert('Số tiền không được âm');
+      return;
+    }
+
+    const totalAmount = parsedAmountSan + parsedAmountWater;
+    if (clubFundBalance !== null && clubFundBalance < totalAmount) {
+      alert(`Quỹ CLB không đủ tiền! Hiện tại: ${clubFundBalance.toLocaleString('vi-VN')} đ, Cần: ${totalAmount.toLocaleString('vi-VN')} đ`);
       return;
     }
 
     try {
-      await fetch('/api/games', {
+      const response = await fetch('/api/games', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          date,
+          date: date || undefined, // Let API use current date if not provided
           note,
-          amount_san: parseFloat(amountSan),
-          amount_water: parseFloat(amountWater),
-          member_ids: selectedMembers,
-          guest_ids: selectedGuests,
+          amount_san: parsedAmountSan,
+          amount_water: parsedAmountWater,
         }),
       });
-      setDate(new Date().toISOString().split('T')[0]);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert(errorData.error || 'Có lỗi xảy ra');
+        return;
+      }
+
+      setDate('');
       setNote('');
       setAmountSan('');
       setAmountWater('');
-      setSelectedMembers([]);
-      setSelectedGuests([]);
       setShowAddForm(false);
       fetchData();
     } catch (error) {
@@ -136,17 +127,6 @@ export default function GamesPage() {
     }
   };
 
-  const toggleMember = (id: number) => {
-    setSelectedMembers((prev: number[]) =>
-      prev.includes(id) ? prev.filter((m: number) => m !== id) : [...prev, id]
-    );
-  };
-
-  const toggleGuest = (id: number) => {
-    setSelectedGuests((prev: number[]) =>
-      prev.includes(id) ? prev.filter((g: number) => g !== id) : [...prev, id]
-    );
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -170,15 +150,25 @@ export default function GamesPage() {
 
           {showAddForm && (
             <form onSubmit={handleSubmit} className="mb-6 p-6 bg-gray-50 rounded-lg">
+              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>Quỹ CLB hiện tại:</strong>{' '}
+                  {clubFundBalance !== null 
+                    ? `${clubFundBalance.toLocaleString('vi-VN')} đ`
+                    : 'Đang tải...'}
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Tiền sẽ tự động trừ vào quỹ CLB khi tạo game
+                </p>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Ngày</label>
+                  <label className="block text-sm font-medium mb-2">Ngày (mặc định: hôm nay)</label>
                   <input
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    required
                   />
                 </div>
                 <div>
@@ -194,11 +184,23 @@ export default function GamesPage() {
                 <div>
                   <label className="block text-sm font-medium mb-2">Tiền sân</label>
                   <input
-                    type="number"
-                    step="0.01"
-                    value={amountSan}
-                    onChange={(e) => setAmountSan(e.target.value)}
-                    placeholder="0"
+                    type="text"
+                    value={formatNumberInput(amountSan)}
+                    onChange={(e) => {
+                      // Allow only digits, commas, and decimal point
+                      const cleaned = e.target.value.replace(/[^\d,.]/g, '');
+                      // Replace multiple commas with single comma
+                      const normalized = cleaned.replace(/,+/g, ',');
+                      setAmountSan(normalized);
+                    }}
+                    onBlur={(e) => {
+                      // Format on blur to ensure proper formatting
+                      const parsed = parseFormattedNumber(e.target.value);
+                      if (parsed >= 0) {
+                        setAmountSan(formatNumberInput(parsed));
+                      }
+                    }}
+                    placeholder="0 (ví dụ: 100,000)"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                     required
                   />
@@ -206,56 +208,26 @@ export default function GamesPage() {
                 <div>
                   <label className="block text-sm font-medium mb-2">Tiền nước</label>
                   <input
-                    type="number"
-                    step="0.01"
-                    value={amountWater}
-                    onChange={(e) => setAmountWater(e.target.value)}
-                    placeholder="0"
+                    type="text"
+                    value={formatNumberInput(amountWater)}
+                    onChange={(e) => {
+                      // Allow only digits, commas, and decimal point
+                      const cleaned = e.target.value.replace(/[^\d,.]/g, '');
+                      // Replace multiple commas with single comma
+                      const normalized = cleaned.replace(/,+/g, ',');
+                      setAmountWater(normalized);
+                    }}
+                    onBlur={(e) => {
+                      // Format on blur to ensure proper formatting
+                      const parsed = parseFormattedNumber(e.target.value);
+                      if (parsed >= 0) {
+                        setAmountWater(formatNumberInput(parsed));
+                      }
+                    }}
+                    placeholder="0 (ví dụ: 50,000)"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                     required
                   />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">Thành viên</label>
-                  <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-lg p-2">
-                    {members.map((member) => (
-                      <label key={member.id} className="flex items-center p-2 hover:bg-gray-100 rounded cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedMembers.includes(member.id)}
-                          onChange={() => toggleMember(member.id)}
-                          className="mr-2"
-                        />
-                        <span>{member.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Khách</label>
-                  <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-lg p-2">
-                    {guests.length > 0 ? (
-                      guests.map((guest) => (
-                        <label key={guest.id} className="flex items-center p-2 hover:bg-gray-100 rounded cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selectedGuests.includes(guest.id)}
-                            onChange={() => toggleGuest(guest.id)}
-                            className="mr-2"
-                            disabled={guest.promoted_to_member_id !== null}
-                          />
-                          <span className={guest.promoted_to_member_id !== null ? 'text-gray-400 line-through' : ''}>
-                            {guest.name}
-                          </span>
-                        </label>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500 p-2">Không có khách nào</p>
-                    )}
-                  </div>
                 </div>
               </div>
 
@@ -270,12 +242,10 @@ export default function GamesPage() {
                   type="button"
                   onClick={() => {
                     setShowAddForm(false);
-                    setDate(new Date().toISOString().split('T')[0]);
+                    setDate('');
                     setNote('');
                     setAmountSan('');
                     setAmountWater('');
-                    setSelectedMembers([]);
-                    setSelectedGuests([]);
                   }}
                   className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2 rounded-lg"
                 >
@@ -293,15 +263,13 @@ export default function GamesPage() {
             <div className="space-y-4">
               {games.map((game) => {
                 const totalAmount = game.amount_san + game.amount_water;
-                const totalParticipants = (game.members?.length || 0) + (game.guests?.length || 0);
-                const amountPerPerson = totalParticipants > 0 ? Math.ceil(totalAmount / totalParticipants) : 0;
 
                 return (
                   <div key={game.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                     <div className="flex justify-between items-start mb-3">
                       <div>
                         <h3 className="text-lg font-semibold">
-                          {new Date(game.date).toLocaleDateString('vi-VN')}
+                          {new Date(game.date + 'T00:00:00+07:00').toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
                         </h3>
                         {game.note && <p className="text-gray-600 text-sm">{game.note}</p>}
                       </div>
@@ -312,7 +280,7 @@ export default function GamesPage() {
                         <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                       <div>
                         <span className="text-sm text-gray-500">Tiền sân:</span>
                         <p className="font-semibold">{game.amount_san.toLocaleString('vi-VN')} đ</p>
@@ -322,39 +290,9 @@ export default function GamesPage() {
                         <p className="font-semibold">{game.amount_water.toLocaleString('vi-VN')} đ</p>
                       </div>
                       <div>
-                        <span className="text-sm text-gray-500">Tổng:</span>
-                        <p className="font-semibold">{totalAmount.toLocaleString('vi-VN')} đ</p>
+                        <span className="text-sm text-gray-500">Tổng chi:</span>
+                        <p className="font-semibold text-red-600">{totalAmount.toLocaleString('vi-VN')} đ</p>
                       </div>
-                      <div>
-                        <span className="text-sm text-gray-500">Mỗi người:</span>
-                        <p className="font-semibold text-orange-600">{amountPerPerson.toLocaleString('vi-VN')} đ</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {game.members && game.members.length > 0 && (
-                        <div className="flex-1 min-w-[200px]">
-                          <span className="text-sm text-gray-500">Thành viên:</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {game.members.map((m) => (
-                              <span key={m.id} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
-                                {m.name}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {game.guests && game.guests.length > 0 && (
-                        <div className="flex-1 min-w-[200px]">
-                          <span className="text-sm text-gray-500">Khách:</span>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {game.guests.map((g) => (
-                              <span key={g.id} className="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">
-                                {g.name}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 );

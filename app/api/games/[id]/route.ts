@@ -9,18 +9,27 @@ export async function DELETE(
     const id = parseInt(params.id);
 
     // Delete related records first
-    await db.execute({
-      sql: 'DELETE FROM need_payments WHERE game_id = ?',
-      args: [id],
-    });
-    await db.execute({
-      sql: 'DELETE FROM game_members WHERE game_id = ?',
-      args: [id],
-    });
-    await db.execute({
-      sql: 'DELETE FROM game_guests WHERE game_id = ?',
-      args: [id],
-    });
+    // Clean up old need_payments data if exists (for backward compatibility)
+    try {
+      await db.execute({
+        sql: 'DELETE FROM need_payments WHERE game_id = ?',
+        args: [id],
+      });
+    } catch (e: any) {
+      // Ignore if table doesn't exist or no records
+    }
+    
+    // Clean up old game_members data if exists (for backward compatibility)
+    try {
+      await db.execute({
+        sql: 'DELETE FROM game_members WHERE game_id = ?',
+        args: [id],
+      });
+    } catch (e: any) {
+      // Ignore if table doesn't exist or no records
+    }
+    
+    // Delete the game
     await db.execute({
       sql: 'DELETE FROM games WHERE id = ?',
       args: [id],

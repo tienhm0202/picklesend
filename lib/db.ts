@@ -13,7 +13,6 @@ export const db = createClient({
 export interface Member {
   id: number;
   name: string;
-  balance: number; // Calculated from deposits and games
   created_at: string;
 }
 
@@ -66,12 +65,11 @@ export interface NeedPayment {
 
 // Initialize database schema
 export async function initDatabase() {
-  // Create Members table
+  // Create Members table (balance removed - all funds go to club fund)
   await db.execute(`
     CREATE TABLE IF NOT EXISTS members (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
-      balance REAL DEFAULT 0,
       color TEXT,
       letter TEXT,
       is_active INTEGER DEFAULT 1,
@@ -97,6 +95,9 @@ export async function initDatabase() {
   } catch (e: any) {
     // Column already exists, ignore
   }
+
+  // Remove balance column if it exists (deprecated - all funds go to club fund)
+  // Note: SQLite doesn't support DROP COLUMN directly, so we'll just ignore it
 
   // Create Guests table
   await db.execute(`

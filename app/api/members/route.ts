@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, initDatabase } from '@/lib/db';
-import { calculateMemberBalance } from '@/lib/utils';
 import { generateLetter } from '@/components/Avatar';
 
 export async function GET() {
@@ -9,17 +8,11 @@ export async function GET() {
     const members = result.rows.map((row: any) => ({
       id: Number(row.id),
       name: String(row.name),
-      balance: Number(row.balance),
       color: row.color ? String(row.color) : undefined,
       letter: row.letter ? String(row.letter) : undefined,
       is_active: row.is_active !== undefined ? Boolean(row.is_active) : true,
       created_at: String(row.created_at),
     }));
-
-    // Calculate actual balance for each member
-    for (const member of members) {
-      member.balance = await calculateMemberBalance(member.id, db);
-    }
 
     return NextResponse.json(members);
   } catch (error: any) {
@@ -68,7 +61,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       id: Number(result.lastInsertRowid),
       name: trimmedName,
-      balance: 0,
       color: color || undefined,
       letter: memberLetter,
     }, { status: 201 });
@@ -85,7 +77,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           id: Number(result.lastInsertRowid),
           name: trimmedName,
-          balance: 0,
           color: color || undefined,
           letter: memberLetter,
         }, { status: 201 });

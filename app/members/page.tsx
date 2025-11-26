@@ -8,7 +8,6 @@ import Avatar, { generateLetter, defaultColors, generateColor } from '@/componen
 interface Member {
   id: number;
   name: string;
-  balance: number;
   color?: string;
   letter?: string;
   is_active?: boolean;
@@ -330,7 +329,6 @@ export default function MembersPage() {
                 <thead className="bg-gray-100">
                   <tr>
                     <th className="px-4 py-3 text-left font-semibold">Thành viên</th>
-                    <th className="px-4 py-3 text-left font-semibold">Số dư</th>
                     {isAdmin && <th className="px-4 py-3 text-right font-semibold">Thao tác</th>}
                   </tr>
                 </thead>
@@ -353,12 +351,6 @@ export default function MembersPage() {
                             {member.is_active === false && <span className="ml-2 text-xs text-gray-400">(Đã vô hiệu hóa)</span>}
                           </span>
                         </Link>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={member.balance >= 0 ? 'text-green-600' : 'text-red-600'}>
-                          {member.balance >= 0 ? '+' : ''}
-                          {member.balance.toLocaleString('vi-VN')} đ
-                        </span>
                       </td>
                       {isAdmin && (
                         <td className="px-4 py-3 text-right">

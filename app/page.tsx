@@ -2,16 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Users, UserPlus, DollarSign, GamepadIcon, Receipt, Wallet, AlertCircle, FileText, LogOut } from 'lucide-react';
+import { Users, DollarSign, GamepadIcon, Wallet, AlertCircle, FileText, LogOut } from 'lucide-react';
 
 interface Stats {
-  totalFund: number;
-  clubFund?: number;
-  lowBalanceMembers: Array<{
-    id: number;
-    name: string;
-    balance: number;
-  }>;
+  clubFund: number;
+  totalDeposits: number;
+  totalGameCosts: number;
+  isLowFund: boolean;
+  isEmptyFund: boolean;
 }
 
 export default function Home() {
@@ -75,7 +73,6 @@ export default function Home() {
   // Public menu items (visible to everyone)
   const publicMenuItems = [
     { href: '/members', label: 'Thành viên', icon: Users, color: 'blue' },
-    { href: '/guests', label: 'Khách', icon: UserPlus, color: 'green' },
     { href: '/report', label: 'Report', icon: FileText, color: 'indigo' },
   ];
 
@@ -83,7 +80,6 @@ export default function Home() {
   const adminMenuItems = [
     { href: '/deposits', label: 'Nạp tiền', icon: DollarSign, color: 'purple' },
     { href: '/games', label: 'Game', icon: GamepadIcon, color: 'orange' },
-    { href: '/payments', label: 'Cần thu', icon: Receipt, color: 'red' },
   ];
 
   // Combine menu items based on admin status
@@ -115,65 +111,86 @@ export default function Home() {
         </div>
 
         {/* Stats Section */}
-        <div className="max-w-5xl mx-auto mb-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Total Fund Card */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-800">Tổng quỹ</h2>
-              <Wallet className="w-8 h-8 text-blue-500" />
-            </div>
-            {loading ? (
-              <p className="text-gray-500">Đang tải...</p>
-            ) : (
-              <p className="text-3xl font-bold text-blue-600">
-                {stats?.totalFund?.toLocaleString('vi-VN') || '0'} đ
-              </p>
-            )}
-          </div>
-
-          {/* Club Fund Card */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-800">Tổng Donate</h2>
-              <Wallet className="w-8 h-8 text-purple-500" />
-            </div>
-            {loading ? (
-              <p className="text-gray-500">Đang tải...</p>
-            ) : (
-              <p className="text-3xl font-bold text-purple-600">
-                {stats?.clubFund?.toLocaleString('vi-VN') || '0'} đ
-              </p>
-            )}
-          </div>
-
-          {/* Low Balance Members Card */}
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-800">Thành viên số dư thấp</h2>
-              <AlertCircle className="w-8 h-8 text-orange-500" />
-            </div>
-            {loading ? (
-              <p className="text-gray-500">Đang tải...</p>
-            ) : stats && stats.lowBalanceMembers.length > 0 ? (
-              <div className="space-y-2">
-                {stats.lowBalanceMembers.map((member) => (
-                  <div
-                    key={member.id}
-                    className="flex items-center justify-between p-2 bg-orange-50 rounded"
-                  >
-                    <span className="font-medium text-gray-800">{member.name}</span>
-                    <span className="text-orange-600 font-semibold">
-                      {member.balance.toLocaleString('vi-VN')} đ
-                    </span>
-                  </div>
-                ))}
-                <p className="text-sm text-gray-500 mt-2">
-                  Có {stats.lowBalanceMembers.length} thành viên có số dư dưới 100.000 đ
-                </p>
+        <div className="max-w-5xl mx-auto mb-8">
+          {/* Alert for empty/low fund */}
+          {stats && (stats.isEmptyFund || stats.isLowFund) && (
+            <div className={`mb-6 p-4 rounded-lg ${
+              stats.isEmptyFund 
+                ? 'bg-red-100 border-2 border-red-500' 
+                : 'bg-orange-100 border-2 border-orange-500'
+            }`}>
+              <div className="flex items-center gap-2">
+                <AlertCircle className={`w-6 h-6 ${
+                  stats.isEmptyFund ? 'text-red-600' : 'text-orange-600'
+                }`} />
+                <div>
+                  <h3 className={`font-bold ${
+                    stats.isEmptyFund ? 'text-red-800' : 'text-orange-800'
+                  }`}>
+                    {stats.isEmptyFund ? '⚠️ CẢNH BÁO: Quỹ CLB đã hết tiền!' : '⚠️ Quỹ CLB sắp hết tiền!'}
+                  </h3>
+                  <p className={`text-sm ${
+                    stats.isEmptyFund ? 'text-red-700' : 'text-orange-700'
+                  }`}>
+                    Quỹ hiện tại: <strong>{stats.clubFund.toLocaleString('vi-VN')} đ</strong>
+                    {stats.isEmptyFund && ' - Vui lòng nạp tiền ngay!'}
+                  </p>
+                </div>
               </div>
-            ) : (
-              <p className="text-gray-500">Không có thành viên nào có số dư dưới 100.000 đ</p>
-            )}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Club Fund Card */}
+            <div className={`bg-white rounded-lg shadow-lg p-6 ${
+              stats?.isEmptyFund ? 'border-2 border-red-500' : stats?.isLowFund ? 'border-2 border-orange-500' : ''
+            }`}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">Quỹ CLB</h2>
+                <Wallet className={`w-8 h-8 ${
+                  stats?.isEmptyFund ? 'text-red-500' : stats?.isLowFund ? 'text-orange-500' : 'text-blue-500'
+                }`} />
+              </div>
+              {loading ? (
+                <p className="text-gray-500">Đang tải...</p>
+              ) : (
+                <p className={`text-3xl font-bold ${
+                  stats?.isEmptyFund ? 'text-red-600' : stats?.isLowFund ? 'text-orange-600' : 'text-blue-600'
+                }`}>
+                  {stats?.clubFund?.toLocaleString('vi-VN') || '0'} đ
+                </p>
+              )}
+            </div>
+
+            {/* Total Deposits Card */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">Tổng nạp</h2>
+                <DollarSign className="w-8 h-8 text-green-500" />
+              </div>
+              {loading ? (
+                <p className="text-gray-500">Đang tải...</p>
+              ) : (
+                <p className="text-3xl font-bold text-green-600">
+                  {stats?.totalDeposits?.toLocaleString('vi-VN') || '0'} đ
+                </p>
+              )}
+            </div>
+
+            {/* Total Game Costs Card */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold text-gray-800">Tổng chi</h2>
+                <GamepadIcon className="w-8 h-8 text-orange-500" />
+              </div>
+              {loading ? (
+                <p className="text-gray-500">Đang tải...</p>
+              ) : (
+                <p className="text-3xl font-bold text-orange-600">
+                  {stats?.totalGameCosts?.toLocaleString('vi-VN') || '0'} đ
+                </p>
+              )}
+            </div>
           </div>
         </div>
 

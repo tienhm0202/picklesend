@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { calculateMemberBalance } from '@/lib/utils';
 
 export async function GET(
   request: NextRequest,
@@ -36,81 +35,36 @@ export async function GET(
       letter: memberResult.rows[0].letter ? String(memberResult.rows[0].letter) : undefined,
     };
 
-    // Calculate account balance
-    const balance = await calculateMemberBalance(memberId, db);
-
-    // Get deposit count and total
+    // Get all deposits for this member
     const depositsResult = await db.execute({
-      sql: 'SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total FROM deposits WHERE member_id = ?',
-      args: [memberId],
-    });
-    const depositCount = Number(depositsResult.rows[0]?.count || 0);
-    const totalDeposits = Number(depositsResult.rows[0]?.total || 0);
-
-    // Get total spent (from paid payments)
-    const paymentsResult = await db.execute({
-      sql: `
-        SELECT COALESCE(SUM(amount), 0) as total 
-        FROM need_payments 
-        WHERE member_id = ? AND is_paid = 1
-      `,
-      args: [memberId],
-    });
-    const totalSpent = Number(paymentsResult.rows[0]?.total || 0);
-
-    // Get total covers (amount covered for guests)
-    let totalCovers = 0;
-    try {
-      const coversResult = await db.execute({
-        sql: `
-          SELECT COALESCE(SUM(amount), 0) as total 
-          FROM payment_covers 
-          WHERE member_id = ?
-        `,
-        args: [memberId],
-      });
-      totalCovers = Number(coversResult.rows[0]?.total || 0);
-    } catch (e: any) {
-      // Table might not exist yet
-    }
-
-    // Get games this member participated in with details
-    const gamesResult = await db.execute({
       sql: `
         SELECT 
-          g.id,
-          g.date,
-          g.note,
-          g.amount_san,
-          g.amount_water,
-          np.amount as member_amount
-        FROM games g
-        JOIN game_members gm ON g.id = gm.game_id
-        JOIN need_payments np ON np.game_id = g.id AND np.member_id = ?
-        WHERE gm.member_id = ?
-        ORDER BY g.date DESC
+          id,
+          date,
+          amount,
+          created_at
+        FROM deposits 
+        WHERE member_id = ?
+        ORDER BY date DESC, created_at DESC
       `,
-      args: [memberId, memberId],
+      args: [memberId],
     });
 
-    const games = gamesResult.rows.map((row: any) => ({
+    const deposits = depositsResult.rows.map((row: any) => ({
       id: Number(row.id),
       date: String(row.date),
-      note: String(row.note || ''),
-      amount_san: Number(row.amount_san),
-      amount_water: Number(row.amount_water),
-      member_amount: Number(row.member_amount),
-      total_amount: Number(row.amount_san) + Number(row.amount_water),
+      amount: Number(row.amount),
+      created_at: String(row.created_at),
     }));
+
+    const depositCount = deposits.length;
+    const totalDeposits = deposits.reduce((sum, d) => sum + d.amount, 0);
 
     return NextResponse.json({
       member,
-      balance,
       depositCount,
       totalDeposits,
-      totalSpent: totalSpent + totalCovers, // Include covers in total spent
-      totalCovers,
-      games,
+      deposits,
     });
   } catch (error: any) {
     console.error('Error fetching member stats:', error);

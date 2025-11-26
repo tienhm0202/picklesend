@@ -3,17 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import Avatar from '@/components/Avatar';
 
-interface Game {
+interface Deposit {
   id: number;
   date: string;
-  note: string;
-  amount_san: number;
-  amount_water: number;
-  member_amount: number;
-  total_amount: number;
+  amount: number;
+  created_at: string;
 }
 
 interface MemberStats {
@@ -23,11 +20,9 @@ interface MemberStats {
     color?: string;
     letter?: string;
   };
-  balance: number;
   depositCount: number;
   totalDeposits: number;
-  totalSpent: number;
-  games: Game[];
+  deposits: Deposit[];
 }
 
 export default function MemberDetailPage() {
@@ -36,7 +31,6 @@ export default function MemberDetailPage() {
   const memberId = params.id as string;
   const [stats, setStats] = useState<MemberStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [currentDate, setCurrentDate] = useState(new Date());
 
   useEffect(() => {
     if (memberId) {
@@ -60,51 +54,6 @@ export default function MemberDetailPage() {
       setLoading(false);
     }
   };
-
-  // Get days in month for calendar
-  const getDaysInMonth = (date: Date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    return { firstDay, lastDay, daysInMonth: lastDay.getDate() };
-  };
-
-  const getFirstDayOfWeek = (date: Date) => {
-    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-    return firstDay.getDay();
-  };
-
-  const prevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
-
-  const getGamesForDate = (date: Date): Game[] => {
-    if (!stats) return [];
-    const dateStr = date.toISOString().split('T')[0];
-    return stats.games.filter((game) => game.date === dateStr);
-  };
-
-  const { daysInMonth, firstDay } = getDaysInMonth(currentDate);
-  const startDay = getFirstDayOfWeek(currentDate);
-  const monthNames = [
-    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
-    'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
-  ];
-  const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-
-  const calendarCells = [];
-  for (let i = 0; i < startDay; i++) {
-    calendarCells.push(null);
-  }
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-    calendarCells.push(date);
-  }
 
   if (loading) {
     return (
@@ -139,140 +88,91 @@ export default function MemberDetailPage() {
             />
             <div>
               <h1 className="text-3xl font-bold text-gray-900">{stats.member.name}</h1>
-              <p className="text-gray-600">Thông tin chi tiết thành viên</p>
+              <p className="text-gray-600">Lịch sử nạp tiền</p>
             </div>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-sm text-gray-500 mb-2">Số dư tài khoản</div>
-            <div className={`text-2xl font-bold ${stats.balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {stats.balance >= 0 ? '+' : ''}
-              {stats.balance.toLocaleString('vi-VN')} đ
-            </div>
-          </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           <div className="bg-white rounded-lg shadow-lg p-6">
             <div className="text-sm text-gray-500 mb-2">Số lần nạp tiền</div>
             <div className="text-2xl font-bold text-blue-600">
               {stats.depositCount}
             </div>
-            <div className="text-sm text-gray-400 mt-1">
-              Tổng: {stats.totalDeposits.toLocaleString('vi-VN')} đ
-            </div>
           </div>
 
           <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-sm text-gray-500 mb-2">Tổng số tiền đã tiêu</div>
-            <div className="text-2xl font-bold text-orange-600">
-              {stats.totalSpent.toLocaleString('vi-VN')} đ
+            <div className="text-sm text-gray-500 mb-2">Tổng số tiền đã nạp</div>
+            <div className="text-2xl font-bold text-green-600">
+              {stats.totalDeposits.toLocaleString('vi-VN')} đ
             </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-sm text-gray-500 mb-2">Số game đã tham gia</div>
-            <div className="text-2xl font-bold text-purple-600">
-              {stats.games.length}
+            <div className="text-xs text-gray-500 mt-2">
+              (Tất cả tiền nạp vào quỹ chung CLB)
             </div>
           </div>
         </div>
 
-        {/* Calendar View */}
+        {/* Deposits List */}
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Lịch sử tham gia Game</h2>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={prevMonth}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <h3 className="text-xl font-semibold text-gray-700 min-w-[200px] text-center">
-                {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-              </h3>
-              <button
-                onClick={nextMonth}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Danh sách nạp tiền</h2>
+          
+          {stats.deposits.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-lg">Chưa có giao dịch nạp tiền nào</p>
             </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <div className="grid grid-cols-7 gap-2 min-w-[700px]">
-              {/* Day headers */}
-              {dayNames.map((day) => (
-                <div
-                  key={day}
-                  className="p-2 text-center font-semibold text-gray-600 text-sm"
-                >
-                  {day}
-                </div>
-              ))}
-
-              {/* Calendar cells */}
-              {calendarCells.map((date, index) => {
-                if (!date) {
-                  return <div key={`empty-${index}`} className="p-2 min-h-[120px]" />;
-                }
-
-                const dayGames = getGamesForDate(date);
-                const isToday = date.toDateString() === new Date().toDateString();
-
-                return (
-                  <div
-                    key={date.toISOString()}
-                    className={`
-                      p-2 border border-gray-200 rounded-lg min-h-[120px]
-                      ${isToday ? 'bg-blue-50 border-blue-300' : 'bg-white'}
-                      ${dayGames.length > 0 ? 'hover:shadow-md' : ''}
-                    `}
-                  >
-                    <div
-                      className={`
-                        text-sm font-medium mb-2
-                        ${isToday ? 'text-blue-600' : 'text-gray-700'}
-                      `}
-                    >
-                      {date.getDate()}
-                    </div>
-                    {dayGames.length > 0 && (
-                      <div className="space-y-2">
-                        {dayGames.map((game) => (
-                          <div
-                            key={game.id}
-                            className="bg-orange-50 rounded p-2 border border-orange-200"
-                          >
-                            <div className="text-xs font-semibold text-orange-800 mb-1">
-                              Game #{game.id}
-                            </div>
-                            {game.note && (
-                              <div className="text-xs text-gray-600 mb-1 truncate">
-                                {game.note}
-                              </div>
-                            )}
-                            <div className="text-xs font-semibold text-orange-600">
-                              {game.member_amount.toLocaleString('vi-VN')} đ
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              Tổng: {game.total_amount.toLocaleString('vi-VN')} đ
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-semibold">STT</th>
+                    <th className="px-4 py-3 text-left font-semibold">Ngày nạp</th>
+                    <th className="px-4 py-3 text-right font-semibold">Số tiền</th>
+                    <th className="px-4 py-3 text-left font-semibold">Thời gian tạo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.deposits.map((deposit, index) => (
+                    <tr key={deposit.id} className="border-b hover:bg-gray-50">
+                      <td className="px-4 py-3 text-gray-600">
+                        {stats.deposits.length - index}
+                      </td>
+                      <td className="px-4 py-3">
+                        {new Date(deposit.date + 'T00:00:00+07:00').toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                      </td>
+                      <td className="px-4 py-3 text-right text-green-600 font-semibold">
+                        +{deposit.amount.toLocaleString('vi-VN')} đ
+                      </td>
+                      <td className="px-4 py-3 text-gray-500 text-sm">
+                        {new Date(deposit.created_at).toLocaleString('vi-VN', { 
+                          timeZone: 'Asia/Ho_Chi_Minh',
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot className="bg-gray-50">
+                  <tr>
+                    <td colSpan={2} className="px-4 py-3 font-semibold text-right">
+                      Tổng cộng:
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-green-600 text-lg">
+                      {stats.totalDeposits.toLocaleString('vi-VN')} đ
+                    </td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
-

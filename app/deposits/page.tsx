@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { formatNumberInput, parseFormattedNumber } from '@/lib/utils';
 
 interface Member {
   id: number;
@@ -16,7 +17,6 @@ interface Deposit {
   member_name: string;
   date: string;
   amount: number;
-  is_donation?: boolean;
 }
 
 export default function DepositsPage() {
@@ -25,9 +25,8 @@ export default function DepositsPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [isDonation, setIsDonation] = useState(false);
   const [memberId, setMemberId] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState('');
   const [amount, setAmount] = useState('');
 
   useEffect(() => {
@@ -70,22 +69,34 @@ export default function DepositsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!isDonation && !memberId) || !date || !amount) return;
+    if (!amount) return;
 
     try {
-      await fetch('/api/deposits', {
+      const parsedAmount = parseFormattedNumber(amount);
+      if (parsedAmount <= 0) {
+        alert('Số tiền phải lớn hơn 0');
+        return;
+      }
+
+      const response = await fetch('/api/deposits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          member_id: isDonation ? null : parseInt(memberId),
-          date,
-          amount: parseFloat(amount),
-          is_donation: isDonation,
+          member_id: memberId ? parseInt(memberId) : null,
+          date: date || undefined, // Let API use current date if not provided
+          amount: parsedAmount,
         }),
       });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        alert(errorData.error || 'Có lỗi xảy ra');
+        return;
+      }
+      
       setMemberId('');
+      setDate('');
       setAmount('');
-      setIsDonation(false);
       setShowAddForm(false);
       fetchData();
     } catch (error) {
@@ -129,55 +140,49 @@ export default function DepositsPage() {
           {showAddForm && (
             <form onSubmit={handleSubmit} className="mb-6 p-4 bg-gray-50 rounded-lg">
               <div className="mb-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isDonation}
-                    onChange={(e) => {
-                      setIsDonation(e.target.checked);
-                      if (e.target.checked) {
-                        setMemberId('');
-                      }
-                    }}
-                    className="w-4 h-4"
-                  />
-                  <span className="font-semibold text-purple-600">Đây là khoản donate vào quỹ CLB</span>
-                </label>
+                <p className="text-sm text-gray-600 mb-2">
+                  Tất cả tiền nạp sẽ vào quỹ chung của CLB. Chọn thành viên chỉ để theo dõi ai nạp tiền.
+                </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {!isDonation ? (
-                  <select
-                    value={memberId}
-                    onChange={(e) => setMemberId(e.target.value)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    required={!isDonation}
-                  >
-                    <option value="">Chọn thành viên</option>
-                    {members.map((member) => (
-                      <option key={member.id} value={member.id}>
-                        {member.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <div className="px-4 py-2 border-2 border-purple-300 bg-purple-50 rounded-lg flex items-center">
-                    <span className="font-semibold text-purple-700">Quỹ CLB (Donate)</span>
-                  </div>
-                )}
+                <select
+                  value={memberId}
+                  onChange={(e) => setMemberId(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="">Chọn thành viên (tùy chọn)</option>
+                  {members.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name}
+                    </option>
+                  ))}
+                </select>
                 <input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  required
+                  placeholder="Ngày nạp (mặc định: hôm nay)"
                 />
                 <div className="flex gap-2">
                   <input
-                    type="number"
-                    step="0.01"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    placeholder="Số tiền"
+                    type="text"
+                    value={formatNumberInput(amount)}
+                    onChange={(e) => {
+                      // Allow only digits, commas, and decimal point
+                      const cleaned = e.target.value.replace(/[^\d,.]/g, '');
+                      // Replace multiple commas with single comma
+                      const normalized = cleaned.replace(/,+/g, ',');
+                      setAmount(normalized);
+                    }}
+                    onBlur={(e) => {
+                      // Format on blur to ensure proper formatting
+                      const parsed = parseFormattedNumber(e.target.value);
+                      if (parsed > 0) {
+                        setAmount(formatNumberInput(parsed));
+                      }
+                    }}
+                    placeholder="Số tiền (ví dụ: 100,000)"
                     className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     required
                   />
@@ -192,8 +197,8 @@ export default function DepositsPage() {
                     onClick={() => {
                       setShowAddForm(false);
                       setMemberId('');
+                      setDate('');
                       setAmount('');
-                      setIsDonation(false);
                     }}
                     className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2 rounded-lg"
                   >
@@ -221,15 +226,11 @@ export default function DepositsPage() {
                 </thead>
                 <tbody>
                   {deposits.map((deposit) => (
-                    <tr key={deposit.id} className={`border-b hover:bg-gray-50 ${deposit.is_donation ? 'bg-purple-50' : ''}`}>
+                    <tr key={deposit.id} className="border-b hover:bg-gray-50">
                       <td className="px-4 py-3">
-                        {deposit.is_donation ? (
-                          <span className="font-semibold text-purple-700">{deposit.member_name}</span>
-                        ) : (
-                          deposit.member_name
-                        )}
+                        {deposit.member_name || 'Không xác định'}
                       </td>
-                      <td className="px-4 py-3">{new Date(deposit.date).toLocaleDateString('vi-VN')}</td>
+                      <td className="px-4 py-3">{new Date(deposit.date + 'T00:00:00+07:00').toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</td>
                       <td className="px-4 py-3 text-right text-green-600 font-semibold">
                         +{deposit.amount.toLocaleString('vi-VN')} đ
                       </td>

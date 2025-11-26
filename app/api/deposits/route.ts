@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { getCurrentDateUTC7, getCurrentDateTimeUTC7 } from '@/lib/utils';
 
 export async function GET() {
   try {
@@ -13,11 +14,10 @@ export async function GET() {
     const deposits = result.rows.map((row: any) => ({
       id: Number(row.id),
       member_id: row.member_id ? Number(row.member_id) : null,
-      member_name: row.member_name ? String(row.member_name) : 'Quỹ CLB (Donate)',
+      member_name: row.member_name ? String(row.member_name) : 'Không xác định',
       date: String(row.date),
       amount: Number(row.amount),
       created_at: String(row.created_at),
-      is_donation: row.member_id === null,
     }));
 
     return NextResponse.json(deposits);
@@ -31,20 +31,14 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { member_id, date, amount, is_donation } = await request.json();
+    const { member_id, date, amount } = await request.json();
     
-    if (!date || !amount) {
+    // Use current date in UTC+7 if not provided
+    const depositDate = date || getCurrentDateUTC7();
+    
+    if (!amount) {
       return NextResponse.json(
-        { error: 'date and amount are required' },
-        { status: 400 }
-      );
-    }
-
-    // If is_donation is true, member_id should be null
-    // If is_donation is false, member_id is required
-    if (!is_donation && !member_id) {
-      return NextResponse.json(
-        { error: 'member_id is required when not donating' },
+        { error: 'amount is required' },
         { status: 400 }
       );
     }
@@ -56,19 +50,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const finalMemberId = is_donation ? null : member_id;
-
+    // All deposits go to club fund
+    // member_id is optional - just for tracking who deposited
     const result = await db.execute({
       sql: 'INSERT INTO deposits (member_id, date, amount) VALUES (?, ?, ?)',
-      args: [finalMemberId, date, amount],
+      args: [member_id || null, depositDate, amount],
     });
 
     return NextResponse.json({
       id: Number(result.lastInsertRowid),
-      member_id: finalMemberId,
-      date,
+      member_id: member_id || null,
+      date: depositDate,
       amount,
-      is_donation: is_donation || false,
     }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json(

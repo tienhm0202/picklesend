@@ -19,7 +19,6 @@ interface Game {
   amount_san: number;
   amount_water: number;
   members?: GameMember[];
-  guests?: Array<{ id: number; name: string }>;
 }
 
 export default function ReportPage() {
@@ -69,15 +68,25 @@ export default function ReportPage() {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   };
 
-  // Get games for a specific date
-  const getGamesForDate = (date: Date): Game[] => {
-    const dateStr = date.toISOString().split('T')[0];
-    return games.filter((game) => game.date === dateStr);
+  // Format date to YYYY-MM-DD in UTC+7 timezone
+  const formatDateUTC7 = (date: Date): string => {
+    // Create date in UTC+7 timezone
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+    
+    // Format as YYYY-MM-DD (treat as UTC+7 date, not UTC)
+    const yearStr = String(year);
+    const monthStr = String(month + 1).padStart(2, '0');
+    const dayStr = String(day).padStart(2, '0');
+    
+    return `${yearStr}-${monthStr}-${dayStr}`;
   };
 
-  // Format date for display
-  const formatDate = (date: Date): string => {
-    return date.toISOString().split('T')[0];
+  // Get games for a specific date
+  const getGamesForDate = (date: Date): Game[] => {
+    const dateStr = formatDateUTC7(date);
+    return games.filter((game) => game.date === dateStr);
   };
 
   const { daysInMonth, firstDay } = getDaysInMonth(currentDate);
@@ -97,6 +106,7 @@ export default function ReportPage() {
   }
 
   // Cells for each day of month
+  // Create dates in local timezone (UTC+7)
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
     calendarCells.push(date);
