@@ -51,6 +51,7 @@ export default function MemberDetailPage() {
       fetchMemberStats();
       fetchGameStats();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);
 
   const fetchMemberStats = async () => {

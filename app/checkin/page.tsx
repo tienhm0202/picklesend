@@ -330,7 +330,7 @@ export default function CheckInPage() {
               <div className="mt-2 p-4 border border-gray-200 rounded-lg bg-gray-50">
                 <div className="flex items-center justify-between">
                   <span className="text-gray-600">
-                    Không tìm thấy thành viên "{searchQuery}"
+                    Không tìm thấy thành viên &quot;{searchQuery}&quot;
                   </span>
                   {!showCreateForm && (
                     <button

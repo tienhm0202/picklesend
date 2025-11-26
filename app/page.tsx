@@ -275,7 +275,7 @@ export default function Home() {
             CLB 5525
           </h1>
           <p className="text-xl text-gray-600">
-            "{randomQuote || SPORTS_QUOTES[0]}"
+            &quot;{randomQuote || SPORTS_QUOTES[0]}&quot;
           </p>
           {isAdmin && (
             <div className="absolute top-0 right-0">
