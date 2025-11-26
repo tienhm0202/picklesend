@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Users, DollarSign, GamepadIcon, Wallet, AlertCircle, FileText, LogOut, Flame, Trophy, Target, X, ClipboardCheck } from 'lucide-react';
+import { Users, DollarSign, GamepadIcon, Wallet, AlertCircle, FileText, LogOut, Flame, Trophy, Target, X, ClipboardCheck, Award, Crown, Medal } from 'lucide-react';
+import Avatar from '@/components/Avatar';
 
 interface Stats {
   clubFund: number;
@@ -37,6 +38,16 @@ interface Game {
   amount_san: number;
   amount_water: number;
   created_at: string;
+}
+
+interface LeaderboardEntry {
+  member_id: number;
+  name: string;
+  color?: string;
+  letter?: string;
+  games_attended: number;
+  total_games: number;
+  participation_rate: number;
 }
 
 const SPORTS_QUOTES = [
@@ -76,12 +87,15 @@ export default function Home() {
   const [loadingDeposits, setLoadingDeposits] = useState(false);
   const [loadingGames, setLoadingGames] = useState(false);
   const [randomQuote, setRandomQuote] = useState<string>('');
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
 
   useEffect(() => {
     // Initialize database on first load
     fetch('/api/init', { method: 'POST' });
     fetchStats();
     fetchStreak();
+    fetchLeaderboard();
     checkAdmin();
     // Random quote on page load
     const randomIndex = Math.floor(Math.random() * SPORTS_QUOTES.length);
@@ -145,6 +159,43 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Error fetching streak:', error);
+    }
+  };
+
+  const fetchLeaderboard = async () => {
+    setLoadingLeaderboard(true);
+    try {
+      const res = await fetch('/api/leaderboard/monthly');
+      if (res.ok) {
+        const data = await res.json();
+        setLeaderboard(data);
+      }
+    } catch (error) {
+      console.error('Error fetching leaderboard:', error);
+    } finally {
+      setLoadingLeaderboard(false);
+    }
+  };
+
+  const getCardColors = (participationRate: number) => {
+    if (participationRate >= 80) {
+      return {
+        gradient: 'from-orange-500 via-red-500 to-orange-500',
+        bg: 'bg-gradient-to-r from-orange-500 via-red-500 to-orange-500',
+        bgSolid: 'bg-orange-500',
+      };
+    } else if (participationRate >= 51) {
+      return {
+        gradient: 'from-blue-400 via-indigo-400 to-blue-400',
+        bg: 'bg-gradient-to-r from-blue-400 via-indigo-400 to-blue-400',
+        bgSolid: 'bg-blue-500',
+      };
+    } else {
+      return {
+        gradient: 'from-gray-400 via-gray-500 to-gray-400',
+        bg: 'bg-gradient-to-r from-gray-400 via-gray-500 to-gray-400',
+        bgSolid: 'bg-gray-500',
+      };
     }
   };
 
@@ -426,6 +477,102 @@ export default function Home() {
                 </>
               )}
             </div>
+          </div>
+        </div>
+
+        {/* Leaderboard Section */}
+        <div className="max-w-5xl mx-auto mb-8">
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <Award className="w-8 h-8 text-yellow-500" />
+              <h2 className="text-2xl font-bold text-gray-900">Pick thủ chăm chỉ</h2>
+              <span className="text-sm text-gray-500">
+                ({new Date().toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })})
+              </span>
+            </div>
+            
+            {loadingLeaderboard ? (
+              <div className="text-center py-8 text-gray-500">Đang tải...</div>
+            ) : leaderboard.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                Chưa có dữ liệu xếp hạng trong tháng này
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Hạng</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-700">Thành viên</th>
+                      <th className="px-4 py-3 text-center font-semibold text-gray-700">Game đã chơi</th>
+                      <th className="px-4 py-3 text-center font-semibold text-gray-700">Tỷ lệ tham gia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboard.map((entry, index) => {
+                      const colors = getCardColors(entry.participation_rate);
+                      const rank = index + 1;
+                      const getRankIcon = () => {
+                        if (rank === 1) {
+                          return <Crown className="w-7 h-7 text-yellow-500 drop-shadow-lg" />;
+                        } else if (rank === 2) {
+                          return <Medal className="w-7 h-7 text-slate-400 drop-shadow-md" />;
+                        } else if (rank === 3) {
+                          return <Medal className="w-6 h-6 text-orange-500" />;
+                        }
+                        return null;
+                      };
+                      
+                      return (
+                        <tr key={entry.member_id} className="border-b hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              {getRankIcon() || <div className="w-6 h-6"></div>}
+                              <div className={`flex items-center justify-center w-9 h-9 rounded-full font-bold text-lg shadow-md ${
+                                rank === 1 ? 'bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 text-yellow-900 shadow-yellow-300' :
+                                rank === 2 ? 'bg-gradient-to-br from-slate-300 via-slate-400 to-slate-500 text-white shadow-slate-300' :
+                                rank === 3 ? 'bg-orange-200 text-orange-800' :
+                                'bg-gray-200 text-gray-700'
+                              }`}>
+                                {rank}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Link 
+                              href={`/members/${entry.member_id}`}
+                              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                            >
+                              <div className={`${colors.bgSolid} rounded-full px-3 py-1 text-white font-semibold flex items-center gap-2`}>
+                                <Avatar
+                                  name={entry.name}
+                                  color={entry.color}
+                                  letter={entry.letter}
+                                  size={24}
+                                />
+                                <span>{entry.name}</span>
+                              </div>
+                            </Link>
+                          </td>
+                          <td className="px-4 py-3 text-center text-gray-700">
+                            {entry.games_attended} / {entry.total_games}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`font-bold text-lg ${
+                              entry.participation_rate >= 80 ? 'text-orange-600' : 
+                              entry.participation_rate >= 51 ? 'text-blue-600' : 
+                              'text-gray-600'
+                            }`}>
+                              {entry.participation_rate.toFixed(1)}%
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
 
