@@ -2,8 +2,11 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'PickleSpend - Quản lý chi tiêu Pickleball',
-  description: 'Ứng dụng quản lý chi tiêu và thanh toán cho nhóm chơi Pickleball',
+  title: 'CLB 55 - Hừng hừng khí thế',
+  description: 'Hừng hừng khí thế',
+  icons: {
+    icon: '/icon.png',
+  },
 }
 
 export default function RootLayout({

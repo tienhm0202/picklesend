@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Users, DollarSign, GamepadIcon, Wallet, AlertCircle, FileText, LogOut, Flame, Trophy, Target, X } from 'lucide-react';
+import { Users, DollarSign, GamepadIcon, Wallet, AlertCircle, FileText, LogOut, Flame, Trophy, Target, X, ClipboardCheck } from 'lucide-react';
 
 interface Stats {
   clubFund: number;
@@ -39,6 +39,31 @@ interface Game {
   created_at: string;
 }
 
+const SPORTS_QUOTES = [
+  "Thành công trong thể thao = 1% tài năng + 99% nỗ lực! 🏆",
+  "Chơi hết mình mỗi ngày - đó là cách của CLB 5525! 🏓",
+  "Không phải về việc bạn đánh tốt hay không, mà là đối thủ của bạn là ai!   😄",
+  "Thể thao xây dựng tính cách và sức mạnh tinh thần! 💪",
+  "Thất bại là mẹ thành công - mỗi lần thua là một bài học quý giá! 🎾",
+  "Trong thể thao, không có gì là không thể khi bạn kiên trì! ⚡",
+  "Thể thao không chỉ là sức mạnh thể chất, mà còn là ý chí mạnh mẽ! 🧠",
+  "Chơi thể thao giúp bạn khỏe mạnh cả về thể chất lẫn tinh thần! 💪",
+  "Mỗi ngày luyện tập là một bước tiến gần hơn đến mục tiêu! 🏆",
+  "Thể thao là cuộc sống - sống hết mình mỗi ngày! 🎯",
+  "Không có gì là không thể trong thể thao khi bạn có đam mê! 🚀",
+  "Thể thao dạy bạn kiên trì và không bao giờ bỏ cuộc! 📊",
+  "Chơi thể thao giúp bạn giải tỏa căng thẳng và tìm lại năng lượng! 😊",
+  "Thể thao là không ngừng cố gắng và không ngừng tiến bộ! ⚖️",
+  "Trong thể thao, điều quan trọng là tinh thần đồng đội và sự gắn kết! 👥",
+  "Thể thao xây dựng sự tự tin và khả năng vượt qua thử thách! 💎",
+  "Chơi thể thao giúp bạn sống lâu hơn và sống khỏe mạnh hơn! 🕐",
+  "Thể thao không chỉ là vận động, mà còn là cách sống tích cực! 📈",
+  "Tham gia đều đặn mỗi tuần - đó là bí quyết để tiến bộ! 🎪",
+  "Mỗi lần chơi là một cơ hội để học hỏi và cải thiện! 🌟",
+  "Thể thao không phân biệt tuổi tác - chỉ cần bạn có đam mê! 🔥",
+  "Thể thao là không ngừng đóng quỹ! ⚖️",
+];
+
 export default function Home() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [streakData, setStreakData] = useState<StreakData | null>(null);
@@ -50,6 +75,7 @@ export default function Home() {
   const [games, setGames] = useState<Game[]>([]);
   const [loadingDeposits, setLoadingDeposits] = useState(false);
   const [loadingGames, setLoadingGames] = useState(false);
+  const [randomQuote, setRandomQuote] = useState<string>('');
 
   useEffect(() => {
     // Initialize database on first load
@@ -57,6 +83,9 @@ export default function Home() {
     fetchStats();
     fetchStreak();
     checkAdmin();
+    // Random quote on page load
+    const randomIndex = Math.floor(Math.random() * SPORTS_QUOTES.length);
+    setRandomQuote(SPORTS_QUOTES[randomIndex] || SPORTS_QUOTES[0]);
   }, []);
 
   const checkAdmin = async () => {
@@ -171,6 +200,7 @@ export default function Home() {
 
   // Public menu items (visible to everyone)
   const publicMenuItems = [
+    { href: '/checkin', label: 'Điểm danh', icon: ClipboardCheck, color: 'green' },
     { href: '/members', label: 'Thành viên', icon: Users, color: 'blue' },
     { href: '/report', label: 'Report', icon: FileText, color: 'indigo' },
   ];
@@ -191,10 +221,10 @@ export default function Home() {
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-12 relative">
           <h1 className="text-5xl font-bold text-gray-900 mb-4">
-            PickleSpend
+            CLB 5525
           </h1>
           <p className="text-xl text-gray-600">
-            Quản lý chi tiêu và thanh toán cho nhóm chơi Pickleball
+            "{randomQuote || SPORTS_QUOTES[0]}"
           </p>
           {isAdmin && (
             <div className="absolute top-0 right-0">

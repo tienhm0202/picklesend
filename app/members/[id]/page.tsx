@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Flame, Trophy, Target, GamepadIcon, Calendar } from 'lucide-react';
 import Avatar from '@/components/Avatar';
 
 interface Deposit {
@@ -19,10 +19,21 @@ interface MemberStats {
     name: string;
     color?: string;
     letter?: string;
+    created_at: string;
   };
   depositCount: number;
   totalDeposits: number;
   deposits: Deposit[];
+}
+
+interface GameStats {
+  currentStreak: number;
+  longestStreak: number;
+  totalGames: number;
+  totalWeeks: number;
+  recentWeeks: Array<{ weekId: string; hasGame: boolean }>;
+  nextMilestone: number;
+  milestoneProgress: number;
 }
 
 export default function MemberDetailPage() {
@@ -30,11 +41,13 @@ export default function MemberDetailPage() {
   const router = useRouter();
   const memberId = params.id as string;
   const [stats, setStats] = useState<MemberStats | null>(null);
+  const [gameStats, setGameStats] = useState<GameStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (memberId) {
       fetchMemberStats();
+      fetchGameStats();
     }
   }, [memberId]);
 
@@ -53,6 +66,27 @@ export default function MemberDetailPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchGameStats = async () => {
+    try {
+      const res = await fetch(`/api/members/${memberId}/games`);
+      if (res.ok) {
+        const data = await res.json();
+        setGameStats(data);
+      }
+    } catch (error) {
+      console.error('Error fetching game stats:', error);
+    }
+  };
+
+  const getStreakMessage = (streak: number): string => {
+    if (streak === 0) return 'Hãy bắt đầu streak của bạn!';
+    if (streak < 5) return 'Tiếp tục phát huy! 🔥';
+    if (streak < 10) return 'Tuyệt vời! Đang trên đà! 🚀';
+    if (streak < 20) return 'Ấn tượng! Streak đang rất tốt! 💪';
+    if (streak < 50) return 'Xuất sắc! Bạn là người kiên trì! ⭐';
+    return 'Huyền thoại! Streak không thể tin được! 🏆';
   };
 
   if (loading) {
@@ -88,10 +122,121 @@ export default function MemberDetailPage() {
             />
             <div>
               <h1 className="text-3xl font-bold text-gray-900">{stats.member.name}</h1>
-              <p className="text-gray-600">Lịch sử nạp tiền</p>
+              <p className="text-gray-600">
+                Tham gia vào ngày{' '}
+                {new Date(stats.member.created_at).toLocaleDateString('vi-VN', {
+                  timeZone: 'Asia/Ho_Chi_Minh',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </p>
             </div>
           </div>
         </div>
+
+        {/* Game Stats Infographic */}
+        {gameStats && (
+          <div className="mb-6">
+            <div className="bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 rounded-xl shadow-2xl p-8 text-white relative overflow-hidden">
+              {/* Decorative background elements */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -mr-32 -mt-32"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-10 rounded-full -ml-24 -mb-24"></div>
+              
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-3xl font-bold mb-2 flex items-center gap-3">
+                      <Flame className="w-8 h-8 text-yellow-300 animate-pulse" />
+                      Streak Tuần Liên Tục
+                    </h2>
+                    <p className="text-orange-100 text-lg">{getStreakMessage(gameStats.currentStreak)}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-6xl font-bold text-yellow-300">
+                      {gameStats.currentStreak}
+                    </div>
+                    <div className="text-orange-100 text-sm">tuần</div>
+                  </div>
+                </div>
+
+                {/* Milestone Progress */}
+                {gameStats.currentStreak > 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium flex items-center gap-2">
+                        <Target className="w-4 h-4" />
+                        Mốc tiếp theo: {gameStats.nextMilestone} tuần
+                      </span>
+                      <span className="text-sm">
+                        {Math.round(gameStats.milestoneProgress)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-white/20 rounded-full h-4 overflow-hidden">
+                      <div 
+                        className="bg-yellow-300 h-full rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${gameStats.milestoneProgress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Weeks Visualization */}
+                <div className="mt-6">
+                  <p className="text-sm font-medium mb-3 text-orange-100">8 tuần gần đây:</p>
+                  <div className="flex gap-2">
+                    {gameStats.recentWeeks.map((week, index) => (
+                      <div
+                        key={index}
+                        className={`flex-1 h-12 rounded-lg flex items-center justify-center transition-all ${
+                          week.hasGame
+                            ? 'bg-yellow-300 text-orange-900 font-bold shadow-lg scale-105'
+                            : 'bg-white/20 text-white/50'
+                        }`}
+                        title={week.weekId}
+                      >
+                        {week.hasGame ? '🔥' : '○'}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Stats Row */}
+                <div className="mt-6 pt-6 border-t border-white/20 grid grid-cols-2 gap-4">
+                  {gameStats.longestStreak > 0 && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Trophy className="w-6 h-6 text-yellow-300" />
+                        <span className="text-orange-100">Kỷ lục streak:</span>
+                      </div>
+                      <span className="text-xl font-bold text-yellow-300">
+                        {gameStats.longestStreak} tuần
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <GamepadIcon className="w-6 h-6 text-yellow-300" />
+                      <span className="text-orange-100">Tổng game đã chơi:</span>
+                    </div>
+                    <span className="text-xl font-bold text-yellow-300">
+                      {gameStats.totalGames} game
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="w-6 h-6 text-yellow-300" />
+                      <span className="text-orange-100">Tổng tuần đã chơi:</span>
+                    </div>
+                    <span className="text-xl font-bold text-yellow-300">
+                      {gameStats.totalWeeks} tuần
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">

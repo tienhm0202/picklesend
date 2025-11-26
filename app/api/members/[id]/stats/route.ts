@@ -33,6 +33,7 @@ export async function GET(
       name: String(memberResult.rows[0].name),
       color: memberResult.rows[0].color ? String(memberResult.rows[0].color) : undefined,
       letter: memberResult.rows[0].letter ? String(memberResult.rows[0].letter) : undefined,
+      created_at: String(memberResult.rows[0].created_at),
     };
 
     // Get all deposits for this member
