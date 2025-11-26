@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Flame, Trophy, Target, GamepadIcon, Calendar, Percent } from 'lucide-react';
+import { ArrowLeft, Flame, Trophy, Target, GamepadIcon, Calendar, Percent, Badge, Award, Crown, Medal, Star } from 'lucide-react';
 import Avatar from '@/components/Avatar';
 
 interface Deposit {
@@ -38,18 +38,28 @@ interface GameStats {
   milestoneProgress: number;
 }
 
+interface BadgeData {
+  month: number;
+  year: number;
+  participation_rate: number;
+  rank: number | null;
+  total_members: number;
+}
+
 export default function MemberDetailPage() {
   const params = useParams();
   const router = useRouter();
   const memberId = params.id as string;
   const [stats, setStats] = useState<MemberStats | null>(null);
   const [gameStats, setGameStats] = useState<GameStats | null>(null);
+  const [badges, setBadges] = useState<BadgeData[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (memberId) {
       fetchMemberStats();
       fetchGameStats();
+      fetchBadges();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);
@@ -80,6 +90,18 @@ export default function MemberDetailPage() {
       }
     } catch (error) {
       console.error('Error fetching game stats:', error);
+    }
+  };
+
+  const fetchBadges = async () => {
+    try {
+      const res = await fetch(`/api/members/${memberId}/badges`);
+      if (res.ok) {
+        const data = await res.json();
+        setBadges(data);
+      }
+    } catch (error) {
+      console.error('Error fetching badges:', error);
     }
   };
 
@@ -313,6 +335,100 @@ export default function MemberDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Badges Section */}
+        {badges.length > 0 && (
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">Badges</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Participation Badges */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-700 mb-4">Badge Tham Gia</h3>
+                <div className="flex flex-wrap gap-3">
+                  {badges.map((badge) => {
+                    const getParticipationBadgeColor = () => {
+                      if (badge.participation_rate >= 80) {
+                        return 'bg-gradient-to-br from-orange-400 via-orange-500 to-orange-600 text-white';
+                      } else if (badge.participation_rate >= 51) {
+                        return 'bg-gradient-to-br from-blue-400 via-indigo-400 to-blue-500 text-white';
+                      } else {
+                        return 'bg-gray-400 text-white';
+                      }
+                    };
+
+                    const getParticipationIcon = () => {
+                      if (badge.participation_rate >= 80) {
+                        return <Star className="w-5 h-5" />;
+                      } else if (badge.participation_rate >= 51) {
+                        return <Award className="w-5 h-5" />;
+                      } else {
+                        return <Badge className="w-5 h-5" />;
+                      }
+                    };
+
+                    return (
+                      <div
+                        key={`participation-${badge.year}-${badge.month}`}
+                        className={`${getParticipationBadgeColor()} rounded-full px-4 py-2 flex items-center gap-2 shadow-md`}
+                      >
+                        {getParticipationIcon()}
+                        <span className="font-semibold text-sm">
+                          {badge.month}/{badge.year}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Rank Badges */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-700 mb-4">Badge Thứ Hạng</h3>
+                <div className="flex flex-wrap gap-3">
+                  {badges
+                    .filter((badge) => badge.rank !== null)
+                    .map((badge) => {
+                      const getRankBadgeColor = () => {
+                        if (badge.rank === 1) {
+                          return 'bg-gradient-to-br from-yellow-400 via-yellow-500 to-yellow-600 text-yellow-900';
+                        } else if (badge.rank === 2) {
+                          return 'bg-gradient-to-br from-slate-300 via-slate-400 to-slate-500 text-white';
+                        } else if (badge.rank === 3) {
+                          return 'bg-gradient-to-br from-orange-300 via-orange-400 to-orange-500 text-white';
+                        } else {
+                          return 'bg-gray-300 text-gray-700';
+                        }
+                      };
+
+                      const getRankIcon = () => {
+                        if (badge.rank === 1) {
+                          return <Crown className="w-5 h-5" />;
+                        } else if (badge.rank === 2) {
+                          return <Medal className="w-5 h-5" />;
+                        } else if (badge.rank === 3) {
+                          return <Medal className="w-5 h-5" />;
+                        } else {
+                          return <Trophy className="w-5 h-5" />;
+                        }
+                      };
+
+                      return (
+                        <div
+                          key={`rank-${badge.year}-${badge.month}`}
+                          className={`${getRankBadgeColor()} rounded-full px-4 py-2 flex items-center gap-2 shadow-md`}
+                        >
+                          {getRankIcon()}
+                          <span className="font-semibold text-sm">
+                            Hạng {badge.rank} - {badge.month}/{badge.year}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Deposits List */}
         <div className="bg-white rounded-lg shadow-lg p-6">

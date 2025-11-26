@@ -63,6 +63,18 @@ export interface NeedPayment {
   created_at: string;
 }
 
+export interface MemberBadge {
+  id: number;
+  member_id: number;
+  month: number;
+  year: number;
+  participation_rate: number;
+  rank: number | null;
+  games_attended: number;
+  total_games: number;
+  created_at: string;
+}
+
 // Initialize database schema
 export async function initDatabase() {
   // Create Members table (balance removed - all funds go to club fund)
@@ -217,6 +229,23 @@ export async function initDatabase() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (payment_id) REFERENCES need_payments(id),
       FOREIGN KEY (member_id) REFERENCES members(id)
+    )
+  `);
+
+  // Create Member Badges table (for caching monthly badges)
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS member_badges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      member_id INTEGER NOT NULL,
+      month INTEGER NOT NULL,
+      year INTEGER NOT NULL,
+      participation_rate REAL NOT NULL,
+      rank INTEGER,
+      games_attended INTEGER NOT NULL,
+      total_games INTEGER NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (member_id) REFERENCES members(id),
+      UNIQUE(member_id, month, year)
     )
   `);
 }

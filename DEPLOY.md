@@ -61,6 +61,10 @@ Trước khi deploy, thêm biến môi trường:
    **Biến 2:**
    - **Name:** `ADMIN_PASS`
    - **Value:** (Nhập password bạn muốn dùng để login vào /superadmin)
+   
+   **Biến 3 (Tùy chọn - để bảo mật Cron Job):**
+   - **Name:** `CRON_SECRET`
+   - **Value:** (Một chuỗi secret ngẫu nhiên, ví dụ: `your-secret-key-here`)
 
 3. Chọn môi trường: **Production**, **Preview**, và **Development** (hoặc chỉ Production)
 
@@ -107,6 +111,45 @@ vercel
 # Deploy production
 vercel --prod
 ```
+
+## Cron Jobs
+
+Ứng dụng sử dụng Vercel Cron Jobs để tự động tính toán badges vào ngày mùng 1 hàng tháng.
+
+### Cấu hình Cron Job
+
+Cron job đã được cấu hình trong file `vercel.json`:
+- **Schedule:** `0 0 1 * *` (00:00 UTC ngày mùng 1 hàng tháng)
+- **Endpoint:** `/api/cron/calculate-badges`
+
+**Lưu ý về bảo mật:**
+- Vercel Cron Jobs được bảo vệ tự động bởi Vercel infrastructure - chỉ Vercel mới có thể gọi các endpoint này
+- File `vercel.json` chỉ cấu hình lịch trình, không chứa secret
+- Nếu muốn thêm lớp bảo mật bổ sung, bạn có thể:
+  1. Thêm `CRON_SECRET` vào Environment Variables trên Vercel Dashboard
+  2. Cron job sẽ verify secret này khi được gọi
+
+### Kiểm tra Cron Job
+
+1. Vào Vercel Dashboard → Project → Settings → Cron Jobs
+2. Kiểm tra xem cron job đã được kích hoạt chưa
+3. Xem logs trong Vercel Dashboard để kiểm tra cron job có chạy thành công không
+
+### Test Cron Job (Development)
+
+**Lưu ý:** Vercel Cron chỉ có thể được gọi bởi Vercel infrastructure. Để test trong development:
+
+1. **Cách 1:** Deploy lên Vercel và kiểm tra logs
+2. **Cách 2:** Gọi API trực tiếp với secret (nếu đã set CRON_SECRET):
+```bash
+# Nếu có CRON_SECRET
+curl "https://your-domain.vercel.app/api/cron/calculate-badges?secret=your-secret"
+
+# Hoặc với Authorization header
+curl -H "Authorization: Bearer your-secret" https://your-domain.vercel.app/api/cron/calculate-badges
+```
+
+**Lưu ý:** Cron job sẽ tính toán badges cho tháng trước đó (tháng vừa kết thúc).
 
 ## Troubleshooting
 
