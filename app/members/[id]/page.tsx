@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Flame, Trophy, Target, GamepadIcon, Calendar, Percent, Badge, Award, Crown, Medal, Star } from 'lucide-react';
+import { ArrowLeft, Flame, Trophy, Target, GamepadIcon, Calendar, Percent, Badge, Award, Crown, Medal, Star, CheckCircle } from 'lucide-react';
 import Avatar from '@/components/Avatar';
 
 interface Deposit {
@@ -46,6 +46,14 @@ interface BadgeData {
   total_members: number;
 }
 
+interface Game {
+  id: number;
+  date: string;
+  note: string;
+  created_at: string;
+  member_count: number;
+}
+
 export default function MemberDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -53,6 +61,7 @@ export default function MemberDetailPage() {
   const [stats, setStats] = useState<MemberStats | null>(null);
   const [gameStats, setGameStats] = useState<GameStats | null>(null);
   const [badges, setBadges] = useState<BadgeData[]>([]);
+  const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -60,6 +69,7 @@ export default function MemberDetailPage() {
       fetchMemberStats();
       fetchGameStats();
       fetchBadges();
+      fetchGames();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);
@@ -102,6 +112,22 @@ export default function MemberDetailPage() {
       }
     } catch (error) {
       console.error('Error fetching badges:', error);
+    }
+  };
+
+  const fetchGames = async () => {
+    try {
+      const res = await fetch(`/api/members/${memberId}/games/list`);
+      if (res.ok) {
+        const data = await res.json();
+        console.log('Fetched games:', data);
+        setGames(data);
+      } else {
+        const errorData = await res.json();
+        console.error('Error fetching games:', res.status, errorData);
+      }
+    } catch (error) {
+      console.error('Error fetching games:', error);
     }
   };
 
@@ -215,7 +241,7 @@ export default function MemberDetailPage() {
                     <div>
                       <h2 className="text-3xl font-bold mb-2 flex items-center gap-3">
                         <Flame className={`w-8 h-8 ${colors.accent} animate-pulse`} />
-                        Streak Tuần Liên Tục
+                        Hoạt động của bạn
                       </h2>
                       <p className={`${colors.textPrimary} text-lg`}>{getStreakMessage(gameStats.currentStreak)}</p>
                       <p className={`${colors.textSecondary} text-sm mt-1`}>CLB 55 - Hừng hừng khí thế!</p>
@@ -263,7 +289,11 @@ export default function MemberDetailPage() {
                           }`}
                           title={week.weekId}
                         >
-                          {week.hasGame ? '🔥' : '○'}
+                          {week.hasGame ? (
+                            <CheckCircle className="w-6 h-6 text-green-600" />
+                          ) : (
+                            '○'
+                          )}
                         </div>
                       ))}
                     </div>
@@ -315,26 +345,6 @@ export default function MemberDetailPage() {
             </div>
           );
         })()}
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-sm text-gray-500 mb-2">Số lần nạp tiền</div>
-            <div className="text-2xl font-bold text-blue-600">
-              {stats.depositCount}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <div className="text-sm text-gray-500 mb-2">Tổng số tiền đã nạp</div>
-            <div className="text-2xl font-bold text-green-600">
-              {stats.totalDeposits.toLocaleString('vi-VN')} đ
-            </div>
-            <div className="text-xs text-gray-500 mt-2">
-              (Tất cả tiền nạp vào quỹ chung CLB)
-            </div>
-          </div>
-        </div>
 
         {/* Badges Section */}
         {badges.length > 0 && (
@@ -429,6 +439,68 @@ export default function MemberDetailPage() {
             </div>
           </div>
         )}
+
+        {/* Games List */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Game đã tham gia</h2>
+          
+          {games.length === 0 ? (
+            <div className="text-center py-12 text-gray-500">
+              <p className="text-lg">Chưa tham gia game nào</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-semibold">STT</th>
+                    <th className="px-4 py-3 text-left font-semibold">Ngày</th>
+                    <th className="px-4 py-3 text-left font-semibold">Ghi chú</th>
+                    <th className="px-4 py-3 text-right font-semibold">Số người tham gia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {games.map((game, index) => {
+                    return (
+                      <tr key={game.id} className="border-b hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-600">
+                          {index + 1}
+                        </td>
+                        <td className="px-4 py-3">
+                          {new Date(game.date + 'T00:00:00+07:00').toLocaleDateString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}
+                        </td>
+                        <td className="px-4 py-3">{game.note || '-'}</td>
+                        <td className="px-4 py-3 text-right text-blue-600 font-semibold">
+                          {game.member_count} người
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <div className="text-sm text-gray-500 mb-2">Số lần nạp tiền</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {stats.depositCount}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <div className="text-sm text-gray-500 mb-2">Tổng số tiền đã nạp</div>
+            <div className="text-2xl font-bold text-green-600">
+              {stats.totalDeposits.toLocaleString('vi-VN')} đ
+            </div>
+            <div className="text-xs text-gray-500 mt-2">
+              (Tất cả tiền nạp vào quỹ chung CLB)
+            </div>
+          </div>
+        </div>
 
         {/* Deposits List */}
         <div className="bg-white rounded-lg shadow-lg p-6">
