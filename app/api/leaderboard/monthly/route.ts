@@ -3,19 +3,46 @@ import { db } from '@/lib/db';
 
 export async function GET() {
   try {
-    // Get current month start and end dates in UTC+7
+    // Get current month start and end dates in UTC+7 (Asia/Ho_Chi_Minh)
+    // Use Intl.DateTimeFormat to get accurate date in UTC+7 timezone
     const now = new Date();
-    const utc7Date = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-    const year = utc7Date.getFullYear();
-    const month = utc7Date.getMonth();
     
-    // Start of current month
-    const monthStart = new Date(year, month, 1);
-    const monthStartStr = `${year}-${String(month + 1).padStart(2, '0')}-01`;
+    // Get current date in UTC+7 timezone
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
     
-    // End of current month
-    const monthEnd = new Date(year, month + 1, 0);
-    const monthEndStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(monthEnd.getDate()).padStart(2, '0')}`;
+    const parts = formatter.formatToParts(now);
+    const year = parseInt(parts.find(p => p.type === 'year')?.value || '0');
+    const monthNum = parseInt(parts.find(p => p.type === 'month')?.value || '0'); // 1-12
+    
+    // Start of current month in UTC+7
+    const monthStartStr = `${year}-${String(monthNum).padStart(2, '0')}-01`;
+    
+    // End of current month in UTC+7
+    // Calculate last day: get first day of next month in UTC+7, then subtract 1 day
+    const nextMonthNum = monthNum === 12 ? 1 : monthNum + 1;
+    const nextYear = monthNum === 12 ? year + 1 : year;
+    
+    // Create date for first day of next month at midnight UTC+7
+    const firstDayNextMonthUTC7 = new Date(`${nextYear}-${String(nextMonthNum).padStart(2, '0')}-01T00:00:00+07:00`);
+    // Subtract 1 day to get last day of current month
+    const lastDayUTC7 = new Date(firstDayNextMonthUTC7.getTime() - 1);
+    
+    // Format last day in UTC+7 timezone
+    const lastDayFormatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const lastDayParts = lastDayFormatter.formatToParts(lastDayUTC7);
+    const lastDay = parseInt(lastDayParts.find(p => p.type === 'day')?.value || '0');
+    
+    const monthEndStr = `${year}-${String(monthNum).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
     // Get all games in current month
     const gamesResult = await db.execute({

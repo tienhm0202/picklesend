@@ -487,7 +487,11 @@ export default function Home() {
               <Award className="w-8 h-8 text-yellow-500" />
               <h2 className="text-2xl font-bold text-gray-900">Pick thủ chăm chỉ</h2>
               <span className="text-sm text-gray-500">
-                ({new Date().toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })})
+                ({new Date().toLocaleDateString('vi-VN', { 
+                  month: 'long', 
+                  year: 'numeric',
+                  timeZone: 'Asia/Ho_Chi_Minh'
+                })})
               </span>
             </div>
             
