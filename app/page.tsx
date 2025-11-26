@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Users, DollarSign, GamepadIcon, Wallet, AlertCircle, FileText, LogOut } from 'lucide-react';
+import { Users, DollarSign, GamepadIcon, Wallet, AlertCircle, FileText, LogOut, Flame, Trophy, Target, X } from 'lucide-react';
 
 interface Stats {
   clubFund: number;
@@ -12,15 +12,50 @@ interface Stats {
   isEmptyFund: boolean;
 }
 
+interface StreakData {
+  currentStreak: number;
+  longestStreak: number;
+  totalWeeks: number;
+  recentWeeks: Array<{ weekId: string; hasGame: boolean }>;
+  nextMilestone: number;
+  milestoneProgress: number;
+}
+
+interface Deposit {
+  id: number;
+  member_id: number | null;
+  member_name: string;
+  date: string;
+  amount: number;
+  created_at: string;
+}
+
+interface Game {
+  id: number;
+  date: string;
+  note: string;
+  amount_san: number;
+  amount_water: number;
+  created_at: string;
+}
+
 export default function Home() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [streakData, setStreakData] = useState<StreakData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showDepositsModal, setShowDepositsModal] = useState(false);
+  const [showGamesModal, setShowGamesModal] = useState(false);
+  const [deposits, setDeposits] = useState<Deposit[]>([]);
+  const [games, setGames] = useState<Game[]>([]);
+  const [loadingDeposits, setLoadingDeposits] = useState(false);
+  const [loadingGames, setLoadingGames] = useState(false);
 
   useEffect(() => {
     // Initialize database on first load
     fetch('/api/init', { method: 'POST' });
     fetchStats();
+    fetchStreak();
     checkAdmin();
   }, []);
 
@@ -70,6 +105,70 @@ export default function Home() {
     }
   };
 
+  const fetchStreak = async () => {
+    try {
+      const res = await fetch('/api/streak');
+      if (res.ok) {
+        const data = await res.json();
+        setStreakData(data);
+      } else {
+        console.error('Error fetching streak data');
+      }
+    } catch (error) {
+      console.error('Error fetching streak:', error);
+    }
+  };
+
+  const getStreakMessage = (streak: number): string => {
+    if (streak === 0) return 'Hãy bắt đầu streak của bạn!';
+    if (streak < 5) return 'Tiếp tục phát huy! 🔥';
+    if (streak < 10) return 'Tuyệt vời! Đang trên đà! 🚀';
+    if (streak < 20) return 'Ấn tượng! Streak đang rất tốt! 💪';
+    if (streak < 50) return 'Xuất sắc! Bạn là người kiên trì! ⭐';
+    return 'Huyền thoại! Streak không thể tin được! 🏆';
+  };
+
+  const handleShowDeposits = async () => {
+    setShowDepositsModal(true);
+    setLoadingDeposits(true);
+    try {
+      const res = await fetch('/api/deposits');
+      if (res.ok) {
+        const data = await res.json();
+        setDeposits(data);
+      }
+    } catch (error) {
+      console.error('Error fetching deposits:', error);
+    } finally {
+      setLoadingDeposits(false);
+    }
+  };
+
+  const handleShowGames = async () => {
+    setShowGamesModal(true);
+    setLoadingGames(true);
+    try {
+      const res = await fetch('/api/games');
+      if (res.ok) {
+        const data = await res.json();
+        setGames(data);
+      }
+    } catch (error) {
+      console.error('Error fetching games:', error);
+    } finally {
+      setLoadingGames(false);
+    }
+  };
+
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString + 'T00:00:00+07:00').toLocaleDateString('vi-VN', { 
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  };
+
   // Public menu items (visible to everyone)
   const publicMenuItems = [
     { href: '/members', label: 'Thành viên', icon: Users, color: 'blue' },
@@ -109,6 +208,100 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {/* Streak & Gamification Section */}
+        {streakData && (
+          <div className="max-w-5xl mx-auto mb-8">
+            <div className="bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 rounded-xl shadow-2xl p-8 mb-6 text-white relative overflow-hidden">
+              {/* Decorative background elements */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -mr-32 -mt-32"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-10 rounded-full -ml-24 -mb-24"></div>
+              
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-3xl font-bold mb-2 flex items-center gap-3">
+                      <Flame className="w-8 h-8 text-yellow-300 animate-pulse" />
+                      Streak Tuần Liên Tục
+                    </h2>
+                    <p className="text-orange-100 text-lg">{getStreakMessage(streakData.currentStreak)}</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-6xl font-bold text-yellow-300">
+                      {streakData.currentStreak}
+                    </div>
+                    <div className="text-orange-100 text-sm">tuần</div>
+                  </div>
+                </div>
+
+                {/* Milestone Progress */}
+                {streakData.currentStreak > 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium flex items-center gap-2">
+                        <Target className="w-4 h-4" />
+                        Mốc tiếp theo: {streakData.nextMilestone} tuần
+                      </span>
+                      <span className="text-sm">
+                        {Math.round(streakData.milestoneProgress)}%
+                      </span>
+                    </div>
+                    <div className="w-full bg-white/20 rounded-full h-4 overflow-hidden">
+                      <div 
+                        className="bg-yellow-300 h-full rounded-full transition-all duration-500 ease-out"
+                        style={{ width: `${streakData.milestoneProgress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Recent Weeks Visualization */}
+                <div className="mt-6">
+                  <p className="text-sm font-medium mb-3 text-orange-100">8 tuần gần đây:</p>
+                  <div className="flex gap-2">
+                    {streakData.recentWeeks.map((week, index) => (
+                      <div
+                        key={index}
+                        className={`flex-1 h-12 rounded-lg flex items-center justify-center transition-all ${
+                          week.hasGame
+                            ? 'bg-yellow-300 text-orange-900 font-bold shadow-lg scale-105'
+                            : 'bg-white/20 text-white/50'
+                        }`}
+                        title={week.weekId}
+                      >
+                        {week.hasGame ? '🔥' : '○'}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Stats Row */}
+                <div className="mt-6 pt-6 border-t border-white/20 grid grid-cols-2 gap-4">
+                  {streakData.longestStreak > 0 && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Trophy className="w-6 h-6 text-yellow-300" />
+                        <span className="text-orange-100">Kỷ lục streak:</span>
+                      </div>
+                      <span className="text-xl font-bold text-yellow-300">
+                        {streakData.longestStreak} tuần
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <GamepadIcon className="w-6 h-6 text-yellow-300" />
+                      <span className="text-orange-100">Tổng tuần đã chơi:</span>
+                    </div>
+                    <span className="text-xl font-bold text-yellow-300">
+                      {streakData.totalWeeks} tuần
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Stats Section */}
         <div className="max-w-5xl mx-auto mb-8">
@@ -163,7 +356,10 @@ export default function Home() {
             </div>
 
             {/* Total Deposits Card */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
+            <div 
+              className="bg-white rounded-lg shadow-lg p-6 cursor-pointer hover:shadow-xl transition-all transform hover:scale-105"
+              onClick={handleShowDeposits}
+            >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-800">Tổng nạp</h2>
                 <DollarSign className="w-8 h-8 text-green-500" />
@@ -171,14 +367,20 @@ export default function Home() {
               {loading ? (
                 <p className="text-gray-500">Đang tải...</p>
               ) : (
-                <p className="text-3xl font-bold text-green-600">
-                  {stats?.totalDeposits?.toLocaleString('vi-VN') || '0'} đ
-                </p>
+                <>
+                  <p className="text-3xl font-bold text-green-600">
+                    {stats?.totalDeposits?.toLocaleString('vi-VN') || '0'} đ
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">Click để xem chi tiết</p>
+                </>
               )}
             </div>
 
             {/* Total Game Costs Card */}
-            <div className="bg-white rounded-lg shadow-lg p-6">
+            <div 
+              className="bg-white rounded-lg shadow-lg p-6 cursor-pointer hover:shadow-xl transition-all transform hover:scale-105"
+              onClick={handleShowGames}
+            >
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-800">Tổng chi</h2>
                 <GamepadIcon className="w-8 h-8 text-orange-500" />
@@ -186,9 +388,12 @@ export default function Home() {
               {loading ? (
                 <p className="text-gray-500">Đang tải...</p>
               ) : (
-                <p className="text-3xl font-bold text-orange-600">
-                  {stats?.totalGameCosts?.toLocaleString('vi-VN') || '0'} đ
-                </p>
+                <>
+                  <p className="text-3xl font-bold text-orange-600">
+                    {stats?.totalGameCosts?.toLocaleString('vi-VN') || '0'} đ
+                  </p>
+                  <p className="text-sm text-gray-500 mt-2">Click để xem chi tiết</p>
+                </>
               )}
             </div>
           </div>
@@ -221,6 +426,139 @@ export default function Home() {
           })}
         </div>
       </div>
+
+      {/* Deposits Modal */}
+      {showDepositsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                <DollarSign className="w-8 h-8 text-green-500" />
+                Chi tiết nạp tiền
+              </h2>
+              <button
+                onClick={() => setShowDepositsModal(false)}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-6">
+              {loadingDeposits ? (
+                <div className="text-center py-8 text-gray-500">Đang tải...</div>
+              ) : deposits.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">Chưa có giao dịch nạp tiền nào</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-100 sticky top-0">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-semibold">Thành viên</th>
+                        <th className="px-4 py-3 text-left font-semibold">Ngày</th>
+                        <th className="px-4 py-3 text-right font-semibold">Số tiền</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deposits.map((deposit) => (
+                        <tr key={deposit.id} className="border-b hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            {deposit.member_name || 'Không xác định'}
+                          </td>
+                          <td className="px-4 py-3">{formatDate(deposit.date)}</td>
+                          <td className="px-4 py-3 text-right text-green-600 font-semibold">
+                            +{deposit.amount.toLocaleString('vi-VN')} đ
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-gray-50">
+                      <tr>
+                        <td colSpan={2} className="px-4 py-3 font-semibold text-right">
+                          Tổng cộng:
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold text-green-600 text-lg">
+                          {deposits.reduce((sum, d) => sum + d.amount, 0).toLocaleString('vi-VN')} đ
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Games Modal */}
+      {showGamesModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-3">
+                <GamepadIcon className="w-8 h-8 text-orange-500" />
+                Chi tiết chi tiêu
+              </h2>
+              <button
+                onClick={() => setShowGamesModal(false)}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-6">
+              {loadingGames ? (
+                <div className="text-center py-8 text-gray-500">Đang tải...</div>
+              ) : games.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">Chưa có game nào</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-100 sticky top-0">
+                      <tr>
+                        <th className="px-4 py-3 text-left font-semibold">Ngày</th>
+                        <th className="px-4 py-3 text-left font-semibold">Ghi chú</th>
+                        <th className="px-4 py-3 text-right font-semibold">Tiền sân</th>
+                        <th className="px-4 py-3 text-right font-semibold">Tiền nước</th>
+                        <th className="px-4 py-3 text-right font-semibold">Tổng</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {games.map((game) => {
+                        const total = game.amount_san + game.amount_water;
+                        return (
+                          <tr key={game.id} className="border-b hover:bg-gray-50">
+                            <td className="px-4 py-3">{formatDate(game.date)}</td>
+                            <td className="px-4 py-3">{game.note || '-'}</td>
+                            <td className="px-4 py-3 text-right text-gray-700">
+                              {game.amount_san.toLocaleString('vi-VN')} đ
+                            </td>
+                            <td className="px-4 py-3 text-right text-gray-700">
+                              {game.amount_water.toLocaleString('vi-VN')} đ
+                            </td>
+                            <td className="px-4 py-3 text-right text-orange-600 font-semibold">
+                              {total.toLocaleString('vi-VN')} đ
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot className="bg-gray-50">
+                      <tr>
+                        <td colSpan={4} className="px-4 py-3 font-semibold text-right">
+                          Tổng cộng:
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold text-orange-600 text-lg">
+                          {games.reduce((sum, g) => sum + g.amount_san + g.amount_water, 0).toLocaleString('vi-VN')} đ
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
