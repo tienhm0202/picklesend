@@ -55,11 +55,26 @@ export async function GET(
 
     const gameDates = gamesResult.rows.map((row: any) => String(row.date));
 
+    // Get total games of the club
+    const totalClubGamesResult = await db.execute({
+      sql: 'SELECT COUNT(*) as total FROM games',
+      args: [],
+    });
+    const totalClubGames = Number(totalClubGamesResult.rows[0]?.total || 0);
+    const totalGames = gameDates.length;
+    
+    // Calculate participation rate
+    const participationRate = totalClubGames > 0 
+      ? (totalGames / totalClubGames) * 100 
+      : 0;
+
     if (gameDates.length === 0) {
       return NextResponse.json({
         currentStreak: 0,
         longestStreak: 0,
         totalGames: 0,
+        totalClubGames,
+        participationRate: 0,
         totalWeeks: 0,
         weeksWithGames: [],
         recentWeeks: [],
@@ -78,7 +93,6 @@ export async function GET(
 
     const sortedWeeks = Array.from(weeksWithGames).sort();
     const totalWeeks = sortedWeeks.length;
-    const totalGames = gameDates.length;
 
     // Calculate current streak (consecutive weeks from most recent)
     let currentStreak = 0;
@@ -177,6 +191,8 @@ export async function GET(
       currentStreak,
       longestStreak,
       totalGames,
+      totalClubGames,
+      participationRate: Math.round(participationRate * 100) / 100, // Round to 2 decimal places
       totalWeeks,
       weeksWithGames: Array.from(weeksWithGames),
       recentWeeks,

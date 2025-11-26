@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Flame, Trophy, Target, GamepadIcon, Calendar } from 'lucide-react';
+import { ArrowLeft, Flame, Trophy, Target, GamepadIcon, Calendar, Percent } from 'lucide-react';
 import Avatar from '@/components/Avatar';
 
 interface Deposit {
@@ -30,6 +30,8 @@ interface GameStats {
   currentStreak: number;
   longestStreak: number;
   totalGames: number;
+  totalClubGames: number;
+  participationRate: number;
   totalWeeks: number;
   recentWeeks: Array<{ weekId: string; hasGame: boolean }>;
   nextMilestone: number;
@@ -89,6 +91,46 @@ export default function MemberDetailPage() {
     return 'Huyền thoại! Streak không thể tin được! 🏆';
   };
 
+  const getCardColors = (participationRate: number) => {
+    if (participationRate >= 80) {
+      // Màu hiện tại - orange-red gradient (xuất sắc)
+      return {
+        gradient: 'from-orange-500 via-red-500 to-orange-500',
+        textPrimary: 'text-orange-100',
+        textSecondary: 'text-orange-200',
+        accent: 'text-yellow-300',
+        accentBg: 'bg-yellow-300',
+        weekActive: 'bg-yellow-300 text-orange-900',
+        weekInactive: 'bg-white/20 text-white/50',
+        border: 'border-white/20',
+      };
+    } else if (participationRate >= 51) {
+      // Màu nhạt hơn - blue gradient (tốt)
+      return {
+        gradient: 'from-blue-400 via-indigo-400 to-blue-400',
+        textPrimary: 'text-blue-100',
+        textSecondary: 'text-blue-200',
+        accent: 'text-blue-200',
+        accentBg: 'bg-blue-200',
+        weekActive: 'bg-blue-200 text-blue-900',
+        weekInactive: 'bg-white/20 text-white/50',
+        border: 'border-white/20',
+      };
+    } else {
+      // Màu kém hơn - gray gradient (cần cải thiện)
+      return {
+        gradient: 'from-gray-400 via-gray-500 to-gray-400',
+        textPrimary: 'text-gray-100',
+        textSecondary: 'text-gray-200',
+        accent: 'text-gray-200',
+        accentBg: 'bg-gray-200',
+        weekActive: 'bg-gray-200 text-gray-900',
+        weekInactive: 'bg-white/20 text-white/50',
+        border: 'border-white/20',
+      };
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
@@ -136,107 +178,120 @@ export default function MemberDetailPage() {
         </div>
 
         {/* Game Stats Infographic */}
-        {gameStats && (
-          <div className="mb-6">
-            <div className="bg-gradient-to-r from-orange-500 via-red-500 to-orange-500 rounded-xl shadow-2xl p-8 text-white relative overflow-hidden">
-              {/* Decorative background elements */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -mr-32 -mt-32"></div>
-              <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-10 rounded-full -ml-24 -mb-24"></div>
-              
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="text-3xl font-bold mb-2 flex items-center gap-3">
-                      <Flame className="w-8 h-8 text-yellow-300 animate-pulse" />
-                      Streak Tuần Liên Tục
-                    </h2>
-                    <p className="text-orange-100 text-lg">{getStreakMessage(gameStats.currentStreak)}</p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-6xl font-bold text-yellow-300">
-                      {gameStats.currentStreak}
+        {gameStats && (() => {
+          const colors = getCardColors(gameStats.participationRate);
+          return (
+            <div className="mb-6">
+              <div className={`bg-gradient-to-r ${colors.gradient} rounded-xl shadow-2xl p-8 text-white relative overflow-hidden`}>
+                {/* Decorative background elements */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-10 rounded-full -mr-32 -mt-32"></div>
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-white opacity-10 rounded-full -ml-24 -mb-24"></div>
+                
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="text-3xl font-bold mb-2 flex items-center gap-3">
+                        <Flame className={`w-8 h-8 ${colors.accent} animate-pulse`} />
+                        Streak Tuần Liên Tục
+                      </h2>
+                      <p className={`${colors.textPrimary} text-lg`}>{getStreakMessage(gameStats.currentStreak)}</p>
+                      <p className={`${colors.textSecondary} text-sm mt-1`}>CLB 55 - Hừng hừng khí thế!</p>
                     </div>
-                    <div className="text-orange-100 text-sm">tuần</div>
-                  </div>
-                </div>
-
-                {/* Milestone Progress */}
-                {gameStats.currentStreak > 0 && (
-                  <div className="mb-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium flex items-center gap-2">
-                        <Target className="w-4 h-4" />
-                        Mốc tiếp theo: {gameStats.nextMilestone} tuần
-                      </span>
-                      <span className="text-sm">
-                        {Math.round(gameStats.milestoneProgress)}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-white/20 rounded-full h-4 overflow-hidden">
-                      <div 
-                        className="bg-yellow-300 h-full rounded-full transition-all duration-500 ease-out"
-                        style={{ width: `${gameStats.milestoneProgress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Recent Weeks Visualization */}
-                <div className="mt-6">
-                  <p className="text-sm font-medium mb-3 text-orange-100">8 tuần gần đây:</p>
-                  <div className="flex gap-2">
-                    {gameStats.recentWeeks.map((week, index) => (
-                      <div
-                        key={index}
-                        className={`flex-1 h-12 rounded-lg flex items-center justify-center transition-all ${
-                          week.hasGame
-                            ? 'bg-yellow-300 text-orange-900 font-bold shadow-lg scale-105'
-                            : 'bg-white/20 text-white/50'
-                        }`}
-                        title={week.weekId}
-                      >
-                        {week.hasGame ? '🔥' : '○'}
+                    <div className="text-right">
+                      <div className={`text-6xl font-bold ${colors.accent}`}>
+                        {gameStats.currentStreak}
                       </div>
-                    ))}
+                      <div className={`${colors.textPrimary} text-sm`}>tuần</div>
+                    </div>
                   </div>
-                </div>
 
-                {/* Stats Row */}
-                <div className="mt-6 pt-6 border-t border-white/20 grid grid-cols-2 gap-4">
-                  {gameStats.longestStreak > 0 && (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <Trophy className="w-6 h-6 text-yellow-300" />
-                        <span className="text-orange-100">Kỷ lục streak:</span>
+                  {/* Milestone Progress */}
+                  {gameStats.currentStreak > 0 && (
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`text-sm font-medium flex items-center gap-2 ${colors.textPrimary}`}>
+                          <Target className="w-4 h-4" />
+                          Mốc tiếp theo: {gameStats.nextMilestone} tuần
+                        </span>
+                        <span className={`text-sm ${colors.textPrimary}`}>
+                          {Math.round(gameStats.milestoneProgress)}%
+                        </span>
                       </div>
-                      <span className="text-xl font-bold text-yellow-300">
-                        {gameStats.longestStreak} tuần
-                      </span>
+                      <div className="w-full bg-white/20 rounded-full h-4 overflow-hidden">
+                        <div 
+                          className={`${colors.accentBg} h-full rounded-full transition-all duration-500 ease-out`}
+                          style={{ width: `${gameStats.milestoneProgress}%` }}
+                        ></div>
+                      </div>
                     </div>
                   )}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <GamepadIcon className="w-6 h-6 text-yellow-300" />
-                      <span className="text-orange-100">Tổng game đã chơi:</span>
+
+                  {/* Recent Weeks Visualization */}
+                  <div className="mt-6">
+                    <p className={`text-sm font-medium mb-3 ${colors.textPrimary}`}>8 tuần gần đây:</p>
+                    <div className="flex gap-2">
+                      {gameStats.recentWeeks.map((week, index) => (
+                        <div
+                          key={index}
+                          className={`flex-1 h-12 rounded-lg flex items-center justify-center transition-all ${
+                            week.hasGame
+                              ? `${colors.weekActive} font-bold shadow-lg scale-105`
+                              : colors.weekInactive
+                          }`}
+                          title={week.weekId}
+                        >
+                          {week.hasGame ? '🔥' : '○'}
+                        </div>
+                      ))}
                     </div>
-                    <span className="text-xl font-bold text-yellow-300">
-                      {gameStats.totalGames} game
-                    </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Calendar className="w-6 h-6 text-yellow-300" />
-                      <span className="text-orange-100">Tổng tuần đã chơi:</span>
+
+                  {/* Stats Row */}
+                  <div className={`mt-6 pt-6 border-t ${colors.border} grid grid-cols-2 gap-4`}>
+                    {gameStats.longestStreak > 0 && (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Trophy className={`w-6 h-6 ${colors.accent}`} />
+                          <span className={colors.textPrimary}>Kỷ lục streak:</span>
+                        </div>
+                        <span className={`text-xl font-bold ${colors.accent}`}>
+                          {gameStats.longestStreak} tuần
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <GamepadIcon className={`w-6 h-6 ${colors.accent}`} />
+                        <span className={colors.textPrimary}>Tổng game đã chơi:</span>
+                      </div>
+                      <span className={`text-xl font-bold ${colors.accent}`}>
+                        {gameStats.totalGames} game
+                      </span>
                     </div>
-                    <span className="text-xl font-bold text-yellow-300">
-                      {gameStats.totalWeeks} tuần
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Percent className={`w-6 h-6 ${colors.accent}`} />
+                        <span className={colors.textPrimary}>Tỷ lệ tham gia:</span>
+                      </div>
+                      <span className={`text-xl font-bold ${colors.accent}`}>
+                        {gameStats.participationRate.toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Calendar className={`w-6 h-6 ${colors.accent}`} />
+                        <span className={colors.textPrimary}>Tổng tuần đã chơi:</span>
+                      </div>
+                      <span className={`text-xl font-bold ${colors.accent}`}>
+                        {gameStats.totalWeeks} tuần
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
