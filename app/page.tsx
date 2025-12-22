@@ -126,7 +126,9 @@ export default function Home() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch('/api/stats');
+      const res = await fetch('/api/stats', { 
+        cache: 'no-store'
+      });
       if (res.ok) {
         const data = await res.json();
         setStats(data);

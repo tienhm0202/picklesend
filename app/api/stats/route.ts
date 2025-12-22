@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server';
 import { db, initDatabase } from '@/lib/db';
 import { calculateClubFundBalance } from '@/lib/utils';
 
+// Disable caching to ensure fresh data
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
     // Calculate club fund: all deposits - all game costs
