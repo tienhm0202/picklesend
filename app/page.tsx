@@ -280,7 +280,7 @@ export default function Home() {
             {getClubName()}
           </h1>
           <p className="text-xl text-gray-600">
-            &quot;{randomQuote || SPORTS_QUOTES[0]}&quot;
+            &quot;{randomQuote || getSportsQuotes(getClubName())[0]}&quot;
           </p>
           {isAdmin && (
             <div className="absolute top-0 right-0">
