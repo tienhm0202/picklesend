@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Flame, Trophy, Target, GamepadIcon, Calendar, Percent, Badge, Award, Crown, Medal, Star, CheckCircle } from 'lucide-react';
 import Avatar from '@/components/Avatar';
+import { getClubName, getClubSlogan } from '@/lib/utils';
 
 interface Deposit {
   id: number;
@@ -244,7 +245,7 @@ export default function MemberDetailPage() {
                         Hoạt động của bạn
                       </h2>
                       <p className={`${colors.textPrimary} text-lg`}>{getStreakMessage(gameStats.currentStreak)}</p>
-                      <p className={`${colors.textSecondary} text-sm mt-1`}>CLB 55 - Hừng hừng khí thế!</p>
+                      <p className={`${colors.textSecondary} text-sm mt-1`}>{getClubName()} - {getClubSlogan()}!</p>
                     </div>
                     <div className="text-right">
                       <div className={`text-6xl font-bold ${colors.accent}`}>

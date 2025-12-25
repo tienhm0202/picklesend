@@ -1,9 +1,13 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { getClubName, getClubSlogan } from '@/lib/utils'
+
+const clubName = getClubName();
+const clubSlogan = getClubSlogan();
 
 export const metadata: Metadata = {
-  title: 'CLB 55 - Hừng hừng khí thế',
-  description: 'Hừng hừng khí thế',
+  title: `${clubName} - ${clubSlogan}`,
+  description: clubSlogan,
   icons: {
     icon: '/icon.png',
   },

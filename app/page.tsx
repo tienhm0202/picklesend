@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Users, DollarSign, GamepadIcon, Wallet, AlertCircle, FileText, LogOut, Flame, Trophy, Target, X, ClipboardCheck, Award, Crown, Medal } from 'lucide-react';
 import Avatar from '@/components/Avatar';
+import { getClubName } from '@/lib/utils';
 
 interface Stats {
   clubFund: number;
@@ -50,9 +51,9 @@ interface LeaderboardEntry {
   participation_rate: number;
 }
 
-const SPORTS_QUOTES = [
+const getSportsQuotes = (clubName: string) => [
   "Thành công trong thể thao = 1% tài năng + 99% nỗ lực! 🏆",
-  "Chơi hết mình mỗi ngày - đó là cách của CLB 5525! 🏓",
+  `Chơi hết mình mỗi ngày - đó là cách của ${clubName}! 🏓`,
   "Không phải về việc bạn đánh tốt hay không, mà là đối thủ của bạn là ai!   😄",
   "Thể thao xây dựng tính cách và sức mạnh tinh thần! 💪",
   "Thất bại là mẹ thành công - mỗi lần thua là một bài học quý giá! 🎾",
@@ -98,8 +99,10 @@ export default function Home() {
     fetchLeaderboard();
     checkAdmin();
     // Random quote on page load
-    const randomIndex = Math.floor(Math.random() * SPORTS_QUOTES.length);
-    setRandomQuote(SPORTS_QUOTES[randomIndex] || SPORTS_QUOTES[0]);
+    const clubName = getClubName();
+    const quotes = getSportsQuotes(clubName);
+    const randomIndex = Math.floor(Math.random() * quotes.length);
+    setRandomQuote(quotes[randomIndex] || quotes[0]);
   }, []);
 
   const checkAdmin = async () => {
@@ -274,7 +277,7 @@ export default function Home() {
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-12 relative">
           <h1 className="text-5xl font-bold text-gray-900 mb-4">
-            CLB 5525
+            {getClubName()}
           </h1>
           <p className="text-xl text-gray-600">
             &quot;{randomQuote || SPORTS_QUOTES[0]}&quot;

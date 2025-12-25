@@ -106,3 +106,15 @@ export function parseFormattedNumber(value: string): number {
   return isNaN(num) ? 0 : num;
 }
 
+// Get club name from environment variable
+// Supports both server-side (CLUB_NAME) and client-side (NEXT_PUBLIC_CLUB_NAME)
+export function getClubName(): string {
+  return process.env.NEXT_PUBLIC_CLUB_NAME || process.env.CLUB_NAME || 'CLB 5525';
+}
+
+// Get club slogan from environment variable
+// Supports both server-side (CLUB_SLOGAN) and client-side (NEXT_PUBLIC_CLUB_SLOGAN)
+export function getClubSlogan(): string {
+  return process.env.NEXT_PUBLIC_CLUB_SLOGAN || process.env.CLUB_SLOGAN || 'Hừng hừng khí thế';
+}
+
