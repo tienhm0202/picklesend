@@ -1,6 +1,10 @@
 import { createClient } from '@libsql/client';
 
-const url = 'libsql://picklespend-tienhm.aws-ap-northeast-1.turso.io';
+const url = process.env.TURSO_BASE_URL;
+if (!url) {
+  throw new Error('TURSO_BASE_URL environment variable is not set');
+}
+
 const authToken = process.env.TURSO_AUTH_TOKEN;
 // const authToken = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NjE3MzA2ODEsImlkIjoiMjYxMjA0YTgtZmQ5ZS00Y2ZlLTgyYzAtNGI3OWMzNTVkNjM2IiwicmlkIjoiYmYzMDI3OGEtNzMyNy00NWQxLWFhZWEtNzIxMTRhY2UwNGJlIn0.TkBUeQYuBmu_eRIGoPp51JWsrql5TQAY2_y6mgvxLUTmAevQhLaja6UJIeYl6OoxJOGOy-FltOE2rf2tWSxBDg";
 
