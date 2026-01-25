@@ -43,6 +43,14 @@ export interface Game {
   created_at: string;
 }
 
+export interface GameExpense {
+  id: number;
+  game_id: number;
+  name: string;
+  amount: number;
+  created_at: string;
+}
+
 export interface GameMember {
   id: number;
   game_id: number;
@@ -169,6 +177,18 @@ export async function initDatabase() {
       amount_san REAL NOT NULL,
       amount_water REAL NOT NULL,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Create Game Expenses table (for flexible expense items)
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS game_expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      game_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      amount REAL NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE
     )
   `);
 

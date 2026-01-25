@@ -12,12 +12,19 @@ interface Member {
   letter?: string;
 }
 
+interface GameExpense {
+  id?: number;
+  name: string;
+  amount: number;
+}
+
 interface Game {
   id: number;
   date: string;
   note: string;
   amount_san: number;
   amount_water: number;
+  expenses?: GameExpense[];
 }
 
 export default function CheckInPage() {

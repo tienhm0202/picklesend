@@ -7,12 +7,19 @@ import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { formatNumberInput, parseFormattedNumber } from '@/lib/utils';
 
 
+interface GameExpense {
+  id?: number;
+  name: string;
+  amount: number;
+}
+
 interface Game {
   id: number;
   date: string;
   note: string;
   amount_san: number;
   amount_water: number;
+  expenses?: GameExpense[];
 }
 
 export default function GamesPage() {
@@ -22,8 +29,10 @@ export default function GamesPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
-  const [amountSan, setAmountSan] = useState('');
-  const [amountWater, setAmountWater] = useState('');
+  const [expenses, setExpenses] = useState<Array<{ name: string; amount: string }>>([
+    { name: 'Tiền sân', amount: '' },
+    { name: 'Tiền nước', amount: '' },
+  ]);
   const [clubFundBalance, setClubFundBalance] = useState<number | null>(null);
 
   useEffect(() => {
@@ -65,22 +74,45 @@ export default function GamesPage() {
     }
   };
 
+  const addExpenseRow = () => {
+    setExpenses([...expenses, { name: '', amount: '' }]);
+  };
+
+  const removeExpenseRow = (index: number) => {
+    if (expenses.length > 1) {
+      setExpenses(expenses.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateExpense = (index: number, field: 'name' | 'amount', value: string) => {
+    const updated = [...expenses];
+    updated[index] = { ...updated[index], [field]: value };
+    setExpenses(updated);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (amountSan === '' || amountWater === '') {
-      alert('Vui lòng nhập tiền sân và tiền nước');
+    
+    // Validate expenses
+    const validExpenses = expenses.filter(exp => exp.name.trim() !== '' && exp.amount.trim() !== '');
+    if (validExpenses.length === 0) {
+      alert('Vui lòng nhập ít nhất một chi phí');
       return;
     }
 
-    const parsedAmountSan = parseFormattedNumber(amountSan);
-    const parsedAmountWater = parseFormattedNumber(amountWater);
+    // Parse and validate amounts
+    const parsedExpenses = validExpenses.map(exp => {
+      const parsedAmount = parseFormattedNumber(exp.amount);
+      if (parsedAmount < 0) {
+        throw new Error('Số tiền không được âm');
+      }
+      return {
+        name: exp.name.trim(),
+        amount: parsedAmount,
+      };
+    });
 
-    if (parsedAmountSan < 0 || parsedAmountWater < 0) {
-      alert('Số tiền không được âm');
-      return;
-    }
-
-    const totalAmount = parsedAmountSan + parsedAmountWater;
+    const totalAmount = parsedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
     if (clubFundBalance !== null && clubFundBalance < totalAmount) {
       alert(`Quỹ CLB không đủ tiền! Hiện tại: ${clubFundBalance.toLocaleString('vi-VN')} đ, Cần: ${totalAmount.toLocaleString('vi-VN')} đ`);
       return;
@@ -93,8 +125,7 @@ export default function GamesPage() {
         body: JSON.stringify({
           date: date || undefined, // Let API use current date if not provided
           note,
-          amount_san: parsedAmountSan,
-          amount_water: parsedAmountWater,
+          expenses: parsedExpenses,
         }),
       });
 
@@ -106,8 +137,10 @@ export default function GamesPage() {
 
       setDate('');
       setNote('');
-      setAmountSan('');
-      setAmountWater('');
+      setExpenses([
+        { name: 'Tiền sân', amount: '' },
+        { name: 'Tiền nước', amount: '' },
+      ]);
       setShowAddForm(false);
       fetchData();
     } catch (error) {
@@ -182,53 +215,77 @@ export default function GamesPage() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Tiền sân</label>
-                  <input
-                    type="text"
-                    value={formatNumberInput(amountSan)}
-                    onChange={(e) => {
-                      // Allow only digits, commas, and decimal point
-                      const cleaned = e.target.value.replace(/[^\d,.]/g, '');
-                      // Replace multiple commas with single comma
-                      const normalized = cleaned.replace(/,+/g, ',');
-                      setAmountSan(normalized);
-                    }}
-                    onBlur={(e) => {
-                      // Format on blur to ensure proper formatting
-                      const parsed = parseFormattedNumber(e.target.value);
-                      if (parsed >= 0) {
-                        setAmountSan(formatNumberInput(parsed));
-                      }
-                    }}
-                    placeholder="0 (ví dụ: 100,000)"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    required
-                  />
+              </div>
+
+              <div className="mb-4">
+                <div className="flex justify-between items-center mb-3">
+                  <label className="block text-sm font-medium">Chi phí</label>
+                  <button
+                    type="button"
+                    onClick={addExpenseRow}
+                    className="text-sm bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg flex items-center"
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Thêm dòng
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">Tiền nước</label>
-                  <input
-                    type="text"
-                    value={formatNumberInput(amountWater)}
-                    onChange={(e) => {
-                      // Allow only digits, commas, and decimal point
-                      const cleaned = e.target.value.replace(/[^\d,.]/g, '');
-                      // Replace multiple commas with single comma
-                      const normalized = cleaned.replace(/,+/g, ',');
-                      setAmountWater(normalized);
-                    }}
-                    onBlur={(e) => {
-                      // Format on blur to ensure proper formatting
-                      const parsed = parseFormattedNumber(e.target.value);
-                      if (parsed >= 0) {
-                        setAmountWater(formatNumberInput(parsed));
-                      }
-                    }}
-                    placeholder="0 (ví dụ: 50,000)"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                    required
-                  />
+                <div className="space-y-2">
+                  {expenses.map((expense, index) => (
+                    <div key={index} className="flex gap-2 items-start">
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={expense.name}
+                          onChange={(e) => updateExpense(index, 'name', e.target.value)}
+                          placeholder="Tên chi phí (ví dụ: Tiền sân, Tiền nước, Tiền thuê nhặt bóng...)"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          required
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={formatNumberInput(expense.amount)}
+                          onChange={(e) => {
+                            const cleaned = e.target.value.replace(/[^\d,.]/g, '');
+                            const normalized = cleaned.replace(/,+/g, ',');
+                            updateExpense(index, 'amount', normalized);
+                          }}
+                          onBlur={(e) => {
+                            const parsed = parseFormattedNumber(e.target.value);
+                            if (parsed >= 0) {
+                              updateExpense(index, 'amount', formatNumberInput(parsed));
+                            }
+                          }}
+                          placeholder="Số tiền (ví dụ: 100,000)"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          required
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeExpenseRow(index)}
+                        disabled={expenses.length === 1}
+                        className="px-3 py-2 text-red-500 hover:text-red-700 disabled:text-gray-300 disabled:cursor-not-allowed"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 p-3 bg-gray-100 rounded-lg">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-700">Tổng cộng:</span>
+                    <span className="text-lg font-bold text-orange-600">
+                      {expenses
+                        .filter(exp => exp.amount.trim() !== '')
+                        .reduce((sum, exp) => {
+                          const parsed = parseFormattedNumber(exp.amount);
+                          return sum + (isNaN(parsed) ? 0 : parsed);
+                        }, 0)
+                        .toLocaleString('vi-VN')} đ
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -245,8 +302,10 @@ export default function GamesPage() {
                     setShowAddForm(false);
                     setDate('');
                     setNote('');
-                    setAmountSan('');
-                    setAmountWater('');
+                    setExpenses([
+                      { name: 'Tiền sân', amount: '' },
+                      { name: 'Tiền nước', amount: '' },
+                    ]);
                   }}
                   className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2 rounded-lg"
                 >
@@ -263,7 +322,14 @@ export default function GamesPage() {
           ) : (
             <div className="space-y-4">
               {games.map((game) => {
-                const totalAmount = game.amount_san + game.amount_water;
+                // Use expenses if available, otherwise fall back to amount_san + amount_water
+                const gameExpenses = game.expenses && game.expenses.length > 0
+                  ? game.expenses
+                  : [
+                      { id: 0, name: 'Tiền sân', amount: game.amount_san },
+                      { id: 1, name: 'Tiền nước', amount: game.amount_water },
+                    ];
+                const totalAmount = gameExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
                 return (
                   <div key={game.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
@@ -281,18 +347,18 @@ export default function GamesPage() {
                         <Trash2 className="w-5 h-5" />
                       </button>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      <div>
-                        <span className="text-sm text-gray-500">Tiền sân:</span>
-                        <p className="font-semibold">{game.amount_san.toLocaleString('vi-VN')} đ</p>
-                      </div>
-                      <div>
-                        <span className="text-sm text-gray-500">Tiền nước:</span>
-                        <p className="font-semibold">{game.amount_water.toLocaleString('vi-VN')} đ</p>
-                      </div>
-                      <div>
-                        <span className="text-sm text-gray-500">Tổng chi:</span>
-                        <p className="font-semibold text-red-600">{totalAmount.toLocaleString('vi-VN')} đ</p>
+                    <div className="space-y-2 mb-3">
+                      {gameExpenses.map((expense, idx) => (
+                        <div key={expense.id || idx} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                          <span className="text-sm text-gray-600">{expense.name}:</span>
+                          <span className="font-semibold text-gray-800">{expense.amount.toLocaleString('vi-VN')} đ</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="pt-2 border-t border-gray-200">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-medium text-gray-700">Tổng chi:</span>
+                        <span className="text-lg font-bold text-red-600">{totalAmount.toLocaleString('vi-VN')} đ</span>
                       </div>
                     </div>
                   </div>

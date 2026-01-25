@@ -26,12 +26,39 @@ export async function GET() {
     }
 
     // Get total game costs
+    // Sum expenses for games that have them, and amount_san + amount_water for games that don't
     let totalGameCosts = 0;
     try {
-      const gamesResult = await db.execute(
-        'SELECT COALESCE(SUM(amount_san + amount_water), 0) as total FROM games'
-      );
-      totalGameCosts = Number(gamesResult.rows[0]?.total || 0);
+      // Get total from expenses table (for games that have expenses)
+      let expensesTotal = 0;
+      try {
+        const expensesResult = await db.execute(
+          'SELECT COALESCE(SUM(amount), 0) as total FROM game_expenses'
+        );
+        expensesTotal = Number(expensesResult.rows[0]?.total || 0);
+      } catch (e: any) {
+        // Expenses table might not exist yet, continue with games table
+      }
+      
+      // For games without expenses (old games), use amount_san + amount_water
+      // We only count games that don't have any expenses
+      let gamesWithoutExpensesTotal = 0;
+      try {
+        const gamesWithoutExpensesResult = await db.execute(
+          `SELECT COALESCE(SUM(amount_san + amount_water), 0) as total 
+           FROM games 
+           WHERE id NOT IN (SELECT DISTINCT game_id FROM game_expenses)`
+        );
+        gamesWithoutExpensesTotal = Number(gamesWithoutExpensesResult.rows[0]?.total || 0);
+      } catch (e: any) {
+        // If the query fails (e.g., expenses table doesn't exist), fall back to all games
+        const gamesResult = await db.execute(
+          'SELECT COALESCE(SUM(amount_san + amount_water), 0) as total FROM games'
+        );
+        gamesWithoutExpensesTotal = Number(gamesResult.rows[0]?.total || 0);
+      }
+      
+      totalGameCosts = expensesTotal + gamesWithoutExpensesTotal;
     } catch (error: any) {
       // If games table doesn't exist, return 0
       if (!error.message?.includes('no such table') && !error.message?.includes('does not exist')) {

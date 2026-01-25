@@ -32,6 +32,12 @@ interface Deposit {
   created_at: string;
 }
 
+interface GameExpense {
+  id?: number;
+  name: string;
+  amount: number;
+}
+
 interface Game {
   id: number;
   date: string;
@@ -39,6 +45,7 @@ interface Game {
   amount_san: number;
   amount_water: number;
   created_at: string;
+  expenses?: GameExpense[];
 }
 
 interface LeaderboardEntry {
@@ -710,7 +717,10 @@ export default function Home() {
                     </thead>
                     <tbody>
                       {games.map((game) => {
-                        const total = game.amount_san + game.amount_water;
+                        // Use expenses total if available, otherwise fall back to amount_san + amount_water
+                        const total = game.expenses && game.expenses.length > 0
+                          ? game.expenses.reduce((sum, exp) => sum + exp.amount, 0)
+                          : game.amount_san + game.amount_water;
                         return (
                           <tr key={game.id} className="border-b hover:bg-gray-50">
                             <td className="px-4 py-3">{formatDate(game.date)}</td>
@@ -734,7 +744,12 @@ export default function Home() {
                           Tổng cộng:
                         </td>
                         <td className="px-4 py-3 text-right font-bold text-orange-600 text-lg">
-                          {games.reduce((sum, g) => sum + g.amount_san + g.amount_water, 0).toLocaleString('vi-VN')} đ
+                          {games.reduce((sum, g) => {
+                            const gameTotal = g.expenses && g.expenses.length > 0
+                              ? g.expenses.reduce((s, exp) => s + exp.amount, 0)
+                              : g.amount_san + g.amount_water;
+                            return sum + gameTotal;
+                          }, 0).toLocaleString('vi-VN')} đ
                         </td>
                       </tr>
                     </tfoot>

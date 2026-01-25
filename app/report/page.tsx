@@ -12,6 +12,12 @@ interface GameMember {
   letter?: string;
 }
 
+interface GameExpense {
+  id?: number;
+  name: string;
+  amount: number;
+}
+
 interface Game {
   id: number;
   date: string;
@@ -19,6 +25,7 @@ interface Game {
   amount_san: number;
   amount_water: number;
   members?: GameMember[];
+  expenses?: GameExpense[];
 }
 
 export default function ReportPage() {
@@ -215,7 +222,12 @@ export default function ReportPage() {
                                 )}
                               </div>
                               <div className="text-xs text-gray-500 mt-1">
-                                {(game.amount_san + game.amount_water).toLocaleString('vi-VN')} đ
+                                {(() => {
+                                  const total = game.expenses && game.expenses.length > 0
+                                    ? game.expenses.reduce((sum, exp) => sum + exp.amount, 0)
+                                    : game.amount_san + game.amount_water;
+                                  return total.toLocaleString('vi-VN') + ' đ';
+                                })()}
                               </div>
                             </div>
                           ))}
