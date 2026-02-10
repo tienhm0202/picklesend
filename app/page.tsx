@@ -710,28 +710,34 @@ export default function Home() {
                       <tr>
                         <th className="px-4 py-3 text-left font-semibold">Ngày</th>
                         <th className="px-4 py-3 text-left font-semibold">Ghi chú</th>
-                        <th className="px-4 py-3 text-right font-semibold">Tiền sân</th>
-                        <th className="px-4 py-3 text-right font-semibold">Tiền nước</th>
+                        <th className="px-4 py-3 text-left font-semibold">Chi tiết</th>
                         <th className="px-4 py-3 text-right font-semibold">Tổng</th>
                       </tr>
                     </thead>
                     <tbody>
                       {games.map((game) => {
-                        // Use expenses total if available, otherwise fall back to amount_san + amount_water
-                        const total = game.expenses && game.expenses.length > 0
-                          ? game.expenses.reduce((sum, exp) => sum + exp.amount, 0)
-                          : game.amount_san + game.amount_water;
+                        const gameExpenses = game.expenses && game.expenses.length > 0
+                          ? game.expenses
+                          : [
+                              { id: 0, name: 'Tiền sân', amount: game.amount_san },
+                              { id: 1, name: 'Tiền nước', amount: game.amount_water },
+                            ];
+                        const total = gameExpenses.reduce((sum, exp) => sum + exp.amount, 0);
                         return (
                           <tr key={game.id} className="border-b hover:bg-gray-50">
-                            <td className="px-4 py-3">{formatDate(game.date)}</td>
-                            <td className="px-4 py-3">{game.note || '-'}</td>
-                            <td className="px-4 py-3 text-right text-gray-700">
-                              {game.amount_san.toLocaleString('vi-VN')} đ
+                            <td className="px-4 py-3 align-top">{formatDate(game.date)}</td>
+                            <td className="px-4 py-3 align-top">{game.note || '-'}</td>
+                            <td className="px-4 py-3 align-top">
+                              <ul className="space-y-1 text-sm text-gray-700">
+                                {gameExpenses.map((expense, idx) => (
+                                  <li key={expense.id ?? idx} className="flex justify-between gap-4">
+                                    <span>{expense.name}:</span>
+                                    <span className="text-gray-800 tabular-nums">{expense.amount.toLocaleString('vi-VN')} đ</span>
+                                  </li>
+                                ))}
+                              </ul>
                             </td>
-                            <td className="px-4 py-3 text-right text-gray-700">
-                              {game.amount_water.toLocaleString('vi-VN')} đ
-                            </td>
-                            <td className="px-4 py-3 text-right text-orange-600 font-semibold">
+                            <td className="px-4 py-3 text-right text-orange-600 font-semibold align-top whitespace-nowrap">
                               {total.toLocaleString('vi-VN')} đ
                             </td>
                           </tr>
@@ -740,15 +746,15 @@ export default function Home() {
                     </tbody>
                     <tfoot className="bg-gray-50">
                       <tr>
-                        <td colSpan={4} className="px-4 py-3 font-semibold text-right">
+                        <td colSpan={3} className="px-4 py-3 font-semibold text-right">
                           Tổng cộng:
                         </td>
                         <td className="px-4 py-3 text-right font-bold text-orange-600 text-lg">
                           {games.reduce((sum, g) => {
-                            const gameTotal = g.expenses && g.expenses.length > 0
-                              ? g.expenses.reduce((s, exp) => s + exp.amount, 0)
-                              : g.amount_san + g.amount_water;
-                            return sum + gameTotal;
+                            const ex = g.expenses && g.expenses.length > 0 ? g.expenses : [
+                              { name: '', amount: g.amount_san + g.amount_water },
+                            ];
+                            return sum + ex.reduce((s, e) => s + e.amount, 0);
                           }, 0).toLocaleString('vi-VN')} đ
                         </td>
                       </tr>
