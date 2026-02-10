@@ -1,16 +1,8 @@
-'use client';
+ 'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
-import Avatar from '@/components/Avatar';
-
-interface GameMember {
-  id: number;
-  name: string;
-  color?: string;
-  letter?: string;
-}
 
 interface GameExpense {
   id?: number;
@@ -24,104 +16,124 @@ interface Game {
   note: string;
   amount_san: number;
   amount_water: number;
-  members?: GameMember[];
   expenses?: GameExpense[];
 }
+
+const ITEMS_PER_PAGE = 50;
 
 export default function ReportPage() {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    fetchGames();
+    initDefaultRangeAndFetch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentDate]);
+  }, []);
 
-  const fetchGames = async () => {
+  const initDefaultRangeAndFetch = async () => {
+    setLoading(true);
     try {
-      const { firstDay, lastDay } = getDaysInMonth(currentDate);
-      const from = formatDateUTC7(firstDay);
-      const to = formatDateUTC7(lastDay);
-      const res = await fetch(`/api/games?from_date=${encodeURIComponent(from)}&to_date=${encodeURIComponent(to)}`);
-      if (res.ok) {
-        const data = await res.json();
-        setGames(data);
-      }
+      const today = new Date();
+      const { firstDay, lastDay } = getDaysInMonth(today);
+      const defaultFrom = formatDateUTC7(firstDay);
+      const defaultTo = formatDateUTC7(lastDay);
+      setFromDate(defaultFrom);
+      setToDate(defaultTo);
+      await fetchGames(defaultFrom, defaultTo);
     } catch (error) {
-      console.error('Error fetching games:', error);
+      console.error('Error initializing report range:', error);
+      setGames([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Get first and last day of current month view
+  const fetchGames = async (from: string, to: string) => {
+    try {
+      const res = await fetch(
+        `/api/games?from_date=${encodeURIComponent(from)}&to_date=${encodeURIComponent(to)}`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setGames(Array.isArray(data) ? data : []);
+        setCurrentPage(1);
+      } else {
+        setGames([]);
+      }
+    } catch (error) {
+      console.error('Error fetching games:', error);
+      setGames([]);
+    }
+  };
+
+  // Get first and last day of month
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
     const month = date.getMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    return { firstDay, lastDay, daysInMonth: lastDay.getDate() };
-  };
-
-  // Get day of week for first day of month (0 = Sunday, 6 = Saturday)
-  const getFirstDayOfWeek = (date: Date) => {
-    const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
-    return firstDay.getDay();
-  };
-
-  // Navigate months
-  const prevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+    return { firstDay, lastDay };
   };
 
   // Format date to YYYY-MM-DD in UTC+7 timezone
   const formatDateUTC7 = (date: Date): string => {
-    // Create date in UTC+7 timezone
     const year = date.getFullYear();
     const month = date.getMonth();
     const day = date.getDate();
-    
-    // Format as YYYY-MM-DD (treat as UTC+7 date, not UTC)
+
     const yearStr = String(year);
     const monthStr = String(month + 1).padStart(2, '0');
     const dayStr = String(day).padStart(2, '0');
-    
+
     return `${yearStr}-${monthStr}-${dayStr}`;
   };
 
-  // Get games for a specific date
-  const getGamesForDate = (date: Date): Game[] => {
-    const dateStr = formatDateUTC7(date);
-    return games.filter((game) => game.date === dateStr);
+  const formatDisplayDate = (dateStr: string) =>
+    new Date(dateStr + 'T00:00:00+07:00').toLocaleDateString('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+    });
+
+  const handleApplyFilter = async () => {
+    if (!fromDate || !toDate) return;
+    if (fromDate > toDate) {
+      alert('Từ ngày phải nhỏ hơn hoặc bằng đến ngày');
+      return;
+    }
+    setLoading(true);
+    try {
+      await fetchGames(fromDate, toDate);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const { daysInMonth, firstDay } = getDaysInMonth(currentDate);
-  const startDay = getFirstDayOfWeek(currentDate);
-  const monthNames = [
-    'Tháng 1', 'Tháng 2', 'Tháng 3', 'Tháng 4', 'Tháng 5', 'Tháng 6',
-    'Tháng 7', 'Tháng 8', 'Tháng 9', 'Tháng 10', 'Tháng 11', 'Tháng 12'
-  ];
-  const dayNames = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  const totalGames = games.length;
+  const totalPages = Math.max(1, Math.ceil(totalGames / ITEMS_PER_PAGE));
+  const currentPageSafe = Math.min(currentPage, totalPages);
+  const startIndex = (currentPageSafe - 1) * ITEMS_PER_PAGE;
+  const currentPageGames = games.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
-  // Create calendar cells
-  const calendarCells = [];
-  
-  // Empty cells for days before month starts
-  for (let i = 0; i < startDay; i++) {
-    calendarCells.push(null);
-  }
+  const handlePrevPage = () => {
+    setCurrentPage((prev) => Math.max(1, prev - 1));
+  };
 
-  // Cells for each day of month
-  // Create dates in local timezone (UTC+7)
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
-    calendarCells.push(date);
-  }
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(totalPages, prev + 1));
+  };
+
+  const overallTotalSpending = games.reduce((sum, game) => {
+    const gameExpenses =
+      game.expenses && game.expenses.length > 0
+        ? game.expenses
+        : [
+            { name: 'Tiền sân', amount: game.amount_san },
+            { name: 'Tiền nước', amount: game.amount_water },
+          ];
+    return sum + gameExpenses.reduce((s, e) => s + e.amount, 0);
+  }, 0);
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -131,129 +143,207 @@ export default function ReportPage() {
             <ArrowLeft className="w-4 h-4 mr-2" />
             Về trang chủ
           </Link>
-          <Link href="/report/spending" className="inline-flex items-center text-orange-600 hover:text-orange-800">
+          <Link
+            href="/report/spending"
+            className="inline-flex items-center text-orange-600 hover:text-orange-800"
+          >
             Báo cáo tiêu tiền
           </Link>
-          <Link href="/report/settlement" className="inline-flex items-center text-indigo-600 hover:text-indigo-800">
+          <Link
+            href="/report/settlement"
+            className="inline-flex items-center text-indigo-600 hover:text-indigo-800"
+          >
             Chốt kỳ đối soát
           </Link>
         </div>
 
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Báo cáo Game</h1>
-            <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">Báo cáo Game</h1>
+
+          {/* Bộ lọc theo from_date, to_date */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <p className="text-sm font-medium text-gray-700 mb-2">Lọc theo khoảng ngày</p>
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Từ ngày</label>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Đến ngày</label>
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
               <button
-                onClick={prevMonth}
-                className="p-2 hover:bg-gray-100 rounded-lg"
+                type="button"
+                onClick={handleApplyFilter}
+                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg"
               >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <h2 className="text-xl font-semibold text-gray-700 min-w-[200px] text-center">
-                {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-              </h2>
-              <button
-                onClick={nextMonth}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                <ChevronRight className="w-5 h-5" />
+                Áp dụng
               </button>
             </div>
           </div>
 
           {loading ? (
-            <div className="text-center py-8">Đang tải...</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <div className="grid grid-cols-7 gap-2 min-w-[700px]">
-                {/* Day headers */}
-                {dayNames.map((day) => (
-                  <div
-                    key={day}
-                    className="p-2 text-center font-semibold text-gray-600 text-sm"
-                  >
-                    {day}
-                  </div>
-                ))}
-
-                {/* Calendar cells */}
-                {calendarCells.map((date, index) => {
-                  if (!date) {
-                    return <div key={`empty-${index}`} className="p-2 min-h-[100px]" />;
-                  }
-
-                  const dayGames = getGamesForDate(date);
-                  const isToday =
-                    date.toDateString() === new Date().toDateString();
-
-                  return (
-                    <div
-                      key={date.toISOString()}
-                      className={`
-                        p-2 border border-gray-200 rounded-lg min-h-[100px]
-                        ${isToday ? 'bg-blue-50 border-blue-300' : 'bg-white'}
-                        ${dayGames.length > 0 ? 'hover:shadow-md' : ''}
-                      `}
-                    >
-                      <div
-                        className={`
-                          text-sm font-medium mb-2
-                          ${isToday ? 'text-blue-600' : 'text-gray-700'}
-                        `}
-                      >
-                        {date.getDate()}
-                      </div>
-                      {dayGames.length > 0 && (
-                        <div className="space-y-2">
-                          {dayGames.map((game) => (
-                            <div
-                              key={game.id}
-                              className="bg-orange-50 rounded p-1 border border-orange-200"
-                            >
-                              <div className="text-xs font-semibold text-orange-800 mb-1">
-                                Game #{game.id}
-                              </div>
-                              {game.note && (
-                                <div className="text-xs text-gray-600 mb-1 truncate">
-                                  {game.note}
-                                </div>
-                              )}
-                              <div className="flex flex-wrap gap-1">
-                                {game.members && game.members.length > 0 && (
-                                  <>
-                                    {game.members.map((member) => (
-                                      <Avatar
-                                        key={member.id}
-                                        name={member.name}
-                                        color={member.color}
-                                        letter={member.letter}
-                                        size={24}
-                                      />
-                                    ))}
-                                  </>
-                                )}
-                              </div>
-                              <div className="text-xs text-gray-500 mt-1">
-                                {(() => {
-                                  const total = game.expenses && game.expenses.length > 0
-                                    ? game.expenses.reduce((sum, exp) => sum + exp.amount, 0)
-                                    : game.amount_san + game.amount_water;
-                                  return total.toLocaleString('vi-VN') + ' đ';
-                                })()}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+            <div className="text-center py-8 text-gray-500">Đang tải...</div>
+          ) : totalGames === 0 ? (
+            <div className="text-center py-8 text-gray-500">
+              Không có game nào trong khoảng thời gian này.
             </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between mb-4 gap-2">
+                <div className="text-sm text-gray-600">
+                  Khoảng thời gian:{' '}
+                  <span className="font-medium">
+                    {formatDisplayDate(fromDate)} – {formatDisplayDate(toDate)}
+                  </span>
+                  <span className="ml-3">
+                    ({totalGames.toLocaleString('vi-VN')} game)
+                  </span>
+                </div>
+                <div className="text-sm text-gray-700">
+                  <span className="font-semibold">Tổng chi trong khoảng:</span>{' '}
+                  <span className="text-orange-600 font-bold">
+                    {overallTotalSpending.toLocaleString('vi-VN')} đ
+                  </span>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-semibold">Ngày</th>
+                      <th className="px-4 py-3 text-left font-semibold">Game</th>
+                      <th className="px-4 py-3 text-left font-semibold">Ghi chú</th>
+                      <th className="px-4 py-3 text-left font-semibold">Chi tiết chi phí</th>
+                      <th className="px-4 py-3 text-right font-semibold">Tổng</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {currentPageGames.map((game) => {
+                      const gameExpenses =
+                        game.expenses && game.expenses.length > 0
+                          ? game.expenses
+                          : [
+                              { id: 0, name: 'Tiền sân', amount: game.amount_san },
+                              { id: 1, name: 'Tiền nước', amount: game.amount_water },
+                            ];
+                      const total = gameExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+
+                      return (
+                        <tr key={game.id} className="border-b hover:bg-gray-50 align-top">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            {formatDisplayDate(game.date)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">#{game.id}</td>
+                          <td className="px-4 py-3 text-gray-600">
+                            {game.note && game.note.trim() !== '' ? game.note : '—'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <ul className="space-y-1 text-sm text-gray-700">
+                              {gameExpenses.map((expense, idx) => (
+                                <li
+                                  key={expense.id ?? idx}
+                                  className="flex justify-between gap-4"
+                                >
+                                  <span>{expense.name}:</span>
+                                  <span className="text-gray-800 tabular-nums whitespace-nowrap">
+                                    {expense.amount.toLocaleString('vi-VN')} đ
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </td>
+                          <td className="px-4 py-3 text-right text-orange-600 font-semibold whitespace-nowrap">
+                            {total.toLocaleString('vi-VN')} đ
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot className="bg-gray-50">
+                    <tr>
+                      <td colSpan={4} className="px-4 py-3 font-semibold text-right">
+                        Tổng cộng (trang hiện tại):
+                      </td>
+                      <td className="px-4 py-3 text-right font-bold text-orange-600 text-lg">
+                        {currentPageGames
+                          .reduce((sum, game) => {
+                            const ex =
+                              game.expenses && game.expenses.length > 0
+                                ? game.expenses
+                                : [
+                                    {
+                                      name: '',
+                                      amount: game.amount_san + game.amount_water,
+                                    },
+                                  ];
+                            return sum + ex.reduce((s, e) => s + e.amount, 0);
+                          }, 0)
+                          .toLocaleString('vi-VN')}{' '}
+                        đ
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Phân trang 50 items / trang */}
+              <div className="mt-4 flex items-center justify-between flex-wrap gap-3">
+                <div className="text-sm text-gray-600">
+                  Trang {currentPageSafe} / {totalPages} ·{' '}
+                  <span>
+                    Hiển thị{' '}
+                    {`${startIndex + 1}-${Math.min(
+                      startIndex + ITEMS_PER_PAGE,
+                      totalGames
+                    )}`}{' '}
+                    trong tổng số {totalGames.toLocaleString('vi-VN')} game
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePrevPage}
+                    disabled={currentPageSafe === 1}
+                    className={`inline-flex items-center px-3 py-1.5 rounded-lg border text-sm ${
+                      currentPageSafe === 1
+                        ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Trước
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleNextPage}
+                    disabled={currentPageSafe === totalPages}
+                    className={`inline-flex items-center px-3 py-1.5 rounded-lg border text-sm ${
+                      currentPageSafe === totalPages
+                        ? 'border-gray-200 text-gray-400 cursor-not-allowed'
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-100'
+                    }`}
+                  >
+                    Sau
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
     </div>
   );
 }
-
