@@ -87,6 +87,14 @@ export interface MemberBadge {
   created_at: string;
 }
 
+export interface SettlementPeriod {
+  id: number;
+  from_date: string;
+  to_date: string;
+  name: string | null;
+  created_at: string;
+}
+
 // Initialize database schema
 export async function initDatabase() {
   // Create Members table (balance removed - all funds go to club fund)
@@ -270,6 +278,17 @@ export async function initDatabase() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (member_id) REFERENCES members(id),
       UNIQUE(member_id, month, year)
+    )
+  `);
+
+  // Create Settlement Periods table (chặng / kỳ chốt)
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS settlement_periods (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_date TEXT NOT NULL,
+      to_date TEXT NOT NULL,
+      name TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
 }

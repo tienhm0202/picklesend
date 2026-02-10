@@ -19,6 +19,14 @@ interface Deposit {
   amount: number;
 }
 
+function getTodayUTC7(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function DepositsPage() {
   const router = useRouter();
   const [deposits, setDeposits] = useState<Deposit[]>([]);
@@ -28,10 +36,12 @@ export default function DepositsPage() {
   const [memberId, setMemberId] = useState('');
   const [date, setDate] = useState('');
   const [amount, setAmount] = useState('');
+  const [filterFromDate, setFilterFromDate] = useState('');
+  const [filterToDate, setFilterToDate] = useState('');
 
   useEffect(() => {
     checkAdmin();
-    fetchData();
+    initFiltersAndData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -51,21 +61,59 @@ export default function DepositsPage() {
     }
   };
 
-  const fetchData = async () => {
+  const initFiltersAndData = async () => {
     try {
-      const [depositsRes, membersRes] = await Promise.all([
-        fetch('/api/deposits'),
-        fetch('/api/members'),
-      ]);
-      const depositsData = await depositsRes.json();
+      const today = getTodayUTC7();
+      const latestRes = await fetch('/api/settlement-periods/latest');
+      if (latestRes.ok) {
+        const latest = await latestRes.json();
+        const defaultFrom = latest?.to_date || '2000-01-01';
+        setFilterFromDate(defaultFrom);
+        setFilterToDate(today);
+        await fetchDepositsWithFilter(defaultFrom, today);
+      } else {
+        setFilterFromDate('2000-01-01');
+        setFilterToDate(today);
+        await fetchDepositsWithFilter('2000-01-01', today);
+      }
+      const membersRes = await fetch('/api/members');
       const membersData = await membersRes.json();
-      setDeposits(depositsData);
       setMembers(membersData);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchDepositsWithFilter = async (from: string, to: string) => {
+    try {
+      const res = await fetch(`/api/deposits?from_date=${encodeURIComponent(from)}&to_date=${encodeURIComponent(to)}`);
+      const data = await res.ok ? res.json() : [];
+      setDeposits(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching deposits:', error);
+      setDeposits([]);
+    }
+  };
+
+  const fetchData = async () => {
+    if (filterFromDate && filterToDate) {
+      await fetchDepositsWithFilter(filterFromDate, filterToDate);
+    }
+    const membersRes = await fetch('/api/members');
+    const membersData = await membersRes.json();
+    setMembers(membersData);
+  };
+
+  const handleApplyFilter = () => {
+    if (!filterFromDate || !filterToDate) return;
+    if (filterFromDate > filterToDate) {
+      alert('Từ ngày phải nhỏ hơn hoặc bằng đến ngày');
+      return;
+    }
+    setLoading(true);
+    fetchDepositsWithFilter(filterFromDate, filterToDate).finally(() => setLoading(false));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -99,7 +147,11 @@ export default function DepositsPage() {
       setDate('');
       setAmount('');
       setShowAddForm(false);
-      fetchData();
+      if (filterFromDate && filterToDate) {
+        fetchDepositsWithFilter(filterFromDate, filterToDate);
+      }
+      const membersRes = await fetch('/api/members');
+      setMembers(await membersRes.json());
     } catch (error) {
       console.error('Error saving deposit:', error);
       alert('Có lỗi xảy ra');
@@ -111,7 +163,9 @@ export default function DepositsPage() {
 
     try {
       await fetch(`/api/deposits/${id}`, { method: 'DELETE' });
-      fetchData();
+      if (filterFromDate && filterToDate) {
+        fetchDepositsWithFilter(filterFromDate, filterToDate);
+      }
     } catch (error) {
       console.error('Error deleting deposit:', error);
       alert('Có lỗi xảy ra');
@@ -136,6 +190,37 @@ export default function DepositsPage() {
               <Plus className="w-5 h-5 mr-2" />
               Thêm nạp tiền
             </button>
+          </div>
+
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <p className="text-sm font-medium text-gray-700 mb-2">Lọc theo kỳ</p>
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Từ ngày</label>
+                <input
+                  type="date"
+                  value={filterFromDate}
+                  onChange={(e) => setFilterFromDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">Đến ngày</label>
+                <input
+                  type="date"
+                  value={filterToDate}
+                  onChange={(e) => setFilterToDate(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleApplyFilter}
+                className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-lg"
+              >
+                Áp dụng
+              </button>
+            </div>
           </div>
 
           {showAddForm && (

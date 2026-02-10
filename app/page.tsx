@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Users, DollarSign, GamepadIcon, Wallet, AlertCircle, FileText, LogOut, Flame, Trophy, Target, X, ClipboardCheck, Award, Crown, Medal } from 'lucide-react';
+import { Users, DollarSign, GamepadIcon, Wallet, AlertCircle, FileText, LogOut, Flame, Trophy, Target, X, ClipboardCheck, Award, Crown, Medal, Scale, CalendarCheck, Lock } from 'lucide-react';
 import Avatar from '@/components/Avatar';
 import { getClubName } from '@/lib/utils';
 
@@ -266,18 +266,15 @@ export default function Home() {
     { href: '/checkin', label: 'Điểm danh', icon: ClipboardCheck, color: 'green' },
     { href: '/members', label: 'Thành viên', icon: Users, color: 'blue' },
     { href: '/report', label: 'Report', icon: FileText, color: 'indigo' },
+    { href: '/report/settlement', label: 'Chốt kỳ đối soát', icon: Scale, color: 'teal' },
   ];
 
   // Admin-only menu items
   const adminMenuItems = [
     { href: '/deposits', label: 'Nạp tiền', icon: DollarSign, color: 'purple' },
     { href: '/games', label: 'Game', icon: GamepadIcon, color: 'orange' },
+    { href: '/settlement', label: 'Chốt kỳ', icon: CalendarCheck, color: 'indigo' },
   ];
-
-  // Combine menu items based on admin status
-  const menuItems = isAdmin 
-    ? [...publicMenuItems, ...adminMenuItems]
-    : publicMenuItems;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -592,32 +589,75 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const colorClasses = {
-              blue: 'bg-blue-500 hover:bg-blue-600',
-              green: 'bg-green-500 hover:bg-green-600',
-              purple: 'bg-purple-500 hover:bg-purple-600',
-              orange: 'bg-orange-500 hover:bg-orange-600',
-              red: 'bg-red-500 hover:bg-red-600',
-              indigo: 'bg-indigo-500 hover:bg-indigo-600',
-            };
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`${colorClasses[item.color as keyof typeof colorClasses]} text-white rounded-lg p-8 shadow-lg hover:shadow-xl transition-all transform hover:scale-105`}
-              >
-                <div className="flex flex-col items-center">
-                  <Icon className="w-16 h-16 mb-4" />
-                  <h2 className="text-2xl font-semibold">{item.label}</h2>
-                </div>
-              </Link>
-            );
-          })}
+        {/* Public menu — visible to everyone */}
+        <div className="max-w-5xl mx-auto mb-10">
+          <h2 className="text-xl font-semibold text-gray-700 mb-4">Truy cập nhanh</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {publicMenuItems.map((item) => {
+              const Icon = item.icon;
+              const colorClasses = {
+                blue: 'bg-blue-500 hover:bg-blue-600',
+                green: 'bg-green-500 hover:bg-green-600',
+                purple: 'bg-purple-500 hover:bg-purple-600',
+                orange: 'bg-orange-500 hover:bg-orange-600',
+                red: 'bg-red-500 hover:bg-red-600',
+                indigo: 'bg-indigo-500 hover:bg-indigo-600',
+                teal: 'bg-teal-600 hover:bg-teal-700',
+              };
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`${colorClasses[item.color as keyof typeof colorClasses]} text-white rounded-lg p-8 shadow-lg hover:shadow-xl transition-all transform hover:scale-105`}
+                >
+                  <div className="flex flex-col items-center">
+                    <Icon className="w-16 h-16 mb-4" />
+                    <h2 className="text-2xl font-semibold text-center">{item.label}</h2>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
         </div>
+
+        {/* Admin menu — only when logged in with ADMIN_PASS */}
+        {isAdmin && (
+          <div className="max-w-5xl mx-auto">
+            <div className="rounded-xl border-2 border-amber-200 bg-amber-50/50 p-6">
+              <h2 className="text-xl font-semibold text-amber-800 mb-1 flex items-center gap-2">
+                <Lock className="w-5 h-5" />
+                Quản trị (yêu cầu đăng nhập admin)
+              </h2>
+              <p className="text-sm text-amber-700 mb-4">Các chức năng dưới đây chỉ dành cho admin.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {adminMenuItems.map((item) => {
+                  const Icon = item.icon;
+                  const colorClasses = {
+                    blue: 'bg-blue-500 hover:bg-blue-600',
+                    green: 'bg-green-500 hover:bg-green-600',
+                    purple: 'bg-purple-500 hover:bg-purple-600',
+                    orange: 'bg-orange-500 hover:bg-orange-600',
+                    red: 'bg-red-500 hover:bg-red-600',
+                    indigo: 'bg-indigo-500 hover:bg-indigo-600',
+                    teal: 'bg-teal-600 hover:bg-teal-700',
+                  };
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`${colorClasses[item.color as keyof typeof colorClasses]} text-white rounded-lg p-8 shadow-lg hover:shadow-xl transition-all transform hover:scale-105`}
+                    >
+                      <div className="flex flex-col items-center">
+                        <Icon className="w-16 h-16 mb-4" />
+                        <h2 className="text-2xl font-semibold text-center">{item.label}</h2>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Deposits Modal */}

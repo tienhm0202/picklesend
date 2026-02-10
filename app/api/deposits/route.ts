@@ -1,16 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { getCurrentDateUTC7, getCurrentDateTimeUTC7 } from '@/lib/utils';
+import { getCurrentDateUTC7 } from '@/lib/utils';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const result = await db.execute(`
-      SELECT d.*, m.name as member_name
-      FROM deposits d
-      LEFT JOIN members m ON d.member_id = m.id
-      ORDER BY d.date DESC, d.created_at DESC
-    `);
-    
+    const { searchParams } = new URL(request.url);
+    let fromDate = searchParams.get('from_date');
+    let toDate = searchParams.get('to_date');
+
+    if (!fromDate || !toDate) {
+      const today = getCurrentDateUTC7();
+      try {
+        const latestResult = await db.execute(`
+          SELECT to_date FROM settlement_periods ORDER BY to_date DESC LIMIT 1
+        `);
+        const defaultFrom = latestResult.rows.length > 0
+          ? String((latestResult.rows[0] as any).to_date)
+          : '2000-01-01';
+        fromDate = fromDate ?? defaultFrom;
+        toDate = toDate ?? today;
+      } catch {
+        fromDate = fromDate ?? '2000-01-01';
+        toDate = toDate ?? getCurrentDateUTC7();
+      }
+    }
+
+    const result = await db.execute({
+      sql: `
+        SELECT d.*, m.name as member_name
+        FROM deposits d
+        LEFT JOIN members m ON d.member_id = m.id
+        WHERE d.date >= ? AND d.date <= ?
+        ORDER BY d.date DESC, d.created_at DESC
+      `,
+      args: [fromDate, toDate],
+    });
+
     const deposits = result.rows.map((row: any) => ({
       id: Number(row.id),
       member_id: row.member_id ? Number(row.member_id) : null,

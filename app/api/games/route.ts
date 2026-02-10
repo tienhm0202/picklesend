@@ -11,12 +11,34 @@ interface Game {
   created_at: string;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const result = await db.execute(`
-      SELECT * FROM games ORDER BY date DESC, created_at DESC
-    `);
-    
+    const { searchParams } = new URL(request.url);
+    let fromDate = searchParams.get('from_date');
+    let toDate = searchParams.get('to_date');
+
+    if (!fromDate || !toDate) {
+      const today = getCurrentDateUTC7();
+      try {
+        const latestResult = await db.execute(`
+          SELECT to_date FROM settlement_periods ORDER BY to_date DESC LIMIT 1
+        `);
+        const defaultFrom = latestResult.rows.length > 0
+          ? String((latestResult.rows[0] as any).to_date)
+          : '2000-01-01';
+        fromDate = fromDate ?? defaultFrom;
+        toDate = toDate ?? today;
+      } catch {
+        fromDate = fromDate ?? '2000-01-01';
+        toDate = toDate ?? today;
+      }
+    }
+
+    const result = await db.execute({
+      sql: `SELECT * FROM games WHERE date >= ? AND date <= ? ORDER BY date DESC, created_at DESC`,
+      args: [fromDate, toDate],
+    });
+
     const games: Game[] = result.rows.map((row: any) => ({
       id: Number(row.id),
       date: String(row.date),

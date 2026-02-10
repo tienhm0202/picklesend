@@ -35,11 +35,15 @@ export default function ReportPage() {
 
   useEffect(() => {
     fetchGames();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentDate]);
 
   const fetchGames = async () => {
     try {
-      const res = await fetch('/api/games');
+      const { firstDay, lastDay } = getDaysInMonth(currentDate);
+      const from = formatDateUTC7(firstDay);
+      const to = formatDateUTC7(lastDay);
+      const res = await fetch(`/api/games?from_date=${encodeURIComponent(from)}&to_date=${encodeURIComponent(to)}`);
       if (res.ok) {
         const data = await res.json();
         setGames(data);
@@ -122,10 +126,18 @@ export default function ReportPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4 max-w-7xl">
-        <Link href="/" className="inline-flex items-center text-blue-600 hover:text-blue-800 mb-6">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Về trang chủ
-        </Link>
+        <div className="flex flex-wrap items-center gap-4 mb-6">
+          <Link href="/" className="inline-flex items-center text-blue-600 hover:text-blue-800">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Về trang chủ
+          </Link>
+          <Link href="/report/spending" className="inline-flex items-center text-orange-600 hover:text-orange-800">
+            Báo cáo tiêu tiền
+          </Link>
+          <Link href="/report/settlement" className="inline-flex items-center text-indigo-600 hover:text-indigo-800">
+            Chốt kỳ đối soát
+          </Link>
+        </div>
 
         <div className="bg-white rounded-lg shadow-lg p-6">
           <div className="flex justify-between items-center mb-6">

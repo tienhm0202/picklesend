@@ -104,6 +104,99 @@ export async function calculateClubFundBalance(db: any): Promise<number> {
   return totalDeposits - totalGameCosts;
 }
 
+// Club fund balance at end of given date (deposits and game costs with date <= dateString)
+export async function calculateClubFundBalanceAtDate(db: any, dateString: string): Promise<number> {
+  let totalDeposits = 0;
+  try {
+    const depositsResult = await db.execute({
+      sql: 'SELECT COALESCE(SUM(amount), 0) as total FROM deposits WHERE date <= ?',
+      args: [dateString],
+    });
+    totalDeposits = Number(depositsResult.rows[0]?.total || 0);
+  } catch (e: any) {
+    // Table might not exist, ignore
+  }
+
+  let totalGameCosts = 0;
+  try {
+    let expensesTotal = 0;
+    try {
+      const expensesResult = await db.execute({
+        sql: `SELECT COALESCE(SUM(ge.amount), 0) as total 
+         FROM game_expenses ge 
+         INNER JOIN games g ON ge.game_id = g.id 
+         WHERE g.date <= ?`,
+        args: [dateString],
+      });
+      expensesTotal = Number(expensesResult.rows[0]?.total || 0);
+    } catch (e: any) {
+      // ignore
+    }
+
+    let gamesWithoutExpensesTotal = 0;
+    try {
+      const gamesWithoutExpensesResult = await db.execute({
+        sql: `SELECT COALESCE(SUM(amount_san + amount_water), 0) as total 
+         FROM games 
+         WHERE date <= ? AND id NOT IN (SELECT DISTINCT game_id FROM game_expenses)`,
+        args: [dateString],
+      });
+      gamesWithoutExpensesTotal = Number(gamesWithoutExpensesResult.rows[0]?.total || 0);
+    } catch (e: any) {
+      const gamesResult = await db.execute({
+        sql: 'SELECT COALESCE(SUM(amount_san + amount_water), 0) as total FROM games WHERE date <= ?',
+        args: [dateString],
+      });
+      gamesWithoutExpensesTotal = Number(gamesResult.rows[0]?.total || 0);
+    }
+    totalGameCosts = expensesTotal + gamesWithoutExpensesTotal;
+  } catch (e: any) {
+    // ignore
+  }
+
+  return totalDeposits - totalGameCosts;
+}
+
+// Total game costs (spending) for games with date in [fromDate, toDate]
+export async function calculateTotalSpendingInRange(db: any, fromDate: string, toDate: string): Promise<number> {
+  let total = 0;
+  try {
+    let expensesTotal = 0;
+    try {
+      const expensesResult = await db.execute({
+        sql: `SELECT COALESCE(SUM(ge.amount), 0) as total 
+         FROM game_expenses ge 
+         INNER JOIN games g ON ge.game_id = g.id 
+         WHERE g.date >= ? AND g.date <= ?`,
+        args: [fromDate, toDate],
+      });
+      expensesTotal = Number(expensesResult.rows[0]?.total || 0);
+    } catch (e: any) {
+      // ignore
+    }
+    let gamesWithoutExpensesTotal = 0;
+    try {
+      const gamesWithoutExpensesResult = await db.execute({
+        sql: `SELECT COALESCE(SUM(amount_san + amount_water), 0) as total 
+         FROM games 
+         WHERE date >= ? AND date <= ? AND id NOT IN (SELECT DISTINCT game_id FROM game_expenses)`,
+        args: [fromDate, toDate],
+      });
+      gamesWithoutExpensesTotal = Number(gamesWithoutExpensesResult.rows[0]?.total || 0);
+    } catch (e: any) {
+      const gamesResult = await db.execute({
+        sql: 'SELECT COALESCE(SUM(amount_san + amount_water), 0) as total FROM games WHERE date >= ? AND date <= ?',
+        args: [fromDate, toDate],
+      });
+      gamesWithoutExpensesTotal = Number(gamesResult.rows[0]?.total || 0);
+    }
+    total = expensesTotal + gamesWithoutExpensesTotal;
+  } catch (e: any) {
+    // ignore
+  }
+  return total;
+}
+
 // Format number for input display (e.g., 100000 -> "100,000")
 export function formatNumberInput(value: string | number): string {
   if (!value && value !== 0) return '';
