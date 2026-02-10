@@ -127,22 +127,10 @@ export async function POST(request: NextRequest) {
       ];
     }
 
-    // Check if club fund has enough balance
+    // Club fund balance (cho phép quỹ âm, truy thu sau)
     const clubFundBalance = await calculateClubFundBalance(db);
-    
-    if (clubFundBalance < totalAmount) {
-      return NextResponse.json(
-        { 
-          error: 'Quỹ CLB không đủ tiền',
-          clubFundBalance,
-          requiredAmount: totalAmount,
-          shortfall: totalAmount - clubFundBalance
-        },
-        { status: 400 }
-      );
-    }
 
-    // Create game - automatically deducts from club fund
+    // Create game - automatically deducts from club fund (có thể âm)
     const gameResult = await db.execute({
       sql: 'INSERT INTO games (date, note, amount_san, amount_water) VALUES (?, ?, ?, ?)',
       args: [gameDate, note || '', amountSan, amountWater],

@@ -112,12 +112,6 @@ export default function GamesPage() {
       };
     });
 
-    const totalAmount = parsedExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-    if (clubFundBalance !== null && clubFundBalance < totalAmount) {
-      alert(`Quỹ CLB không đủ tiền! Hiện tại: ${clubFundBalance.toLocaleString('vi-VN')} đ, Cần: ${totalAmount.toLocaleString('vi-VN')} đ`);
-      return;
-    }
-
     try {
       const response = await fetch('/api/games', {
         method: 'POST',
@@ -192,7 +186,7 @@ export default function GamesPage() {
                     : 'Đang tải...'}
                 </p>
                 <p className="text-xs text-blue-600 mt-1">
-                  Tiền sẽ tự động trừ vào quỹ CLB khi tạo game
+                  Tiền sẽ tự động trừ vào quỹ CLB khi tạo game. Quỹ có thể âm, truy thu sau.
                 </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
