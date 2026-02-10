@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Pencil, Plus, Trash2 } from 'lucide-react';
 import { formatNumberInput, parseFormattedNumber } from '@/lib/utils';
 
 
@@ -27,6 +27,7 @@ export default function GamesPage() {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingGameId, setEditingGameId] = useState<number | null>(null);
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
   const [expenses, setExpenses] = useState<Array<{ name: string; amount: string }>>([
@@ -90,6 +91,36 @@ export default function GamesPage() {
     setExpenses(updated);
   };
 
+  const startEditGame = (game: Game) => {
+    const gameExpenses = game.expenses && game.expenses.length > 0
+      ? game.expenses
+      : [
+          { id: 0, name: 'Tiền sân', amount: game.amount_san },
+          { id: 1, name: 'Tiền nước', amount: game.amount_water },
+        ];
+    setEditingGameId(game.id);
+    setDate(game.date);
+    setNote(game.note || '');
+    setExpenses(
+      gameExpenses.map((e) => ({
+        name: e.name,
+        amount: formatNumberInput(e.amount),
+      }))
+    );
+    setShowAddForm(true);
+  };
+
+  const cancelEdit = () => {
+    setEditingGameId(null);
+    setDate('');
+    setNote('');
+    setExpenses([
+      { name: 'Tiền sân', amount: '' },
+      { name: 'Tiền nước', amount: '' },
+    ]);
+    setShowAddForm(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -113,11 +144,13 @@ export default function GamesPage() {
     });
 
     try {
-      const response = await fetch('/api/games', {
-        method: 'POST',
+      const isEdit = editingGameId !== null;
+      const url = isEdit ? `/api/games/${editingGameId}` : '/api/games';
+      const response = await fetch(url, {
+        method: isEdit ? 'PATCH' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          date: date || undefined, // Let API use current date if not provided
+          date: date || undefined,
           note,
           expenses: parsedExpenses,
         }),
@@ -135,6 +168,7 @@ export default function GamesPage() {
         { name: 'Tiền sân', amount: '' },
         { name: 'Tiền nước', amount: '' },
       ]);
+      setEditingGameId(null);
       setShowAddForm(false);
       fetchData();
     } catch (error) {
@@ -168,7 +202,18 @@ export default function GamesPage() {
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold text-gray-900">Quản lý Game</h1>
             <button
-              onClick={() => setShowAddForm(!showAddForm)}
+              onClick={() => {
+                if (!showAddForm) {
+                  setEditingGameId(null);
+                  setDate('');
+                  setNote('');
+                  setExpenses([
+                    { name: 'Tiền sân', amount: '' },
+                    { name: 'Tiền nước', amount: '' },
+                  ]);
+                }
+                setShowAddForm(!showAddForm);
+              }}
               className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center"
             >
               <Plus className="w-5 h-5 mr-2" />
@@ -178,17 +223,19 @@ export default function GamesPage() {
 
           {showAddForm && (
             <form onSubmit={handleSubmit} className="mb-6 p-6 bg-gray-50 rounded-lg">
-              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Quỹ CLB hiện tại:</strong>{' '}
-                  {clubFundBalance !== null 
-                    ? `${clubFundBalance.toLocaleString('vi-VN')} đ`
-                    : 'Đang tải...'}
-                </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  Tiền sẽ tự động trừ vào quỹ CLB khi tạo game. Quỹ có thể âm, truy thu sau.
-                </p>
-              </div>
+              {editingGameId === null && (
+                <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>Quỹ CLB hiện tại:</strong>{' '}
+                    {clubFundBalance !== null 
+                      ? `${clubFundBalance.toLocaleString('vi-VN')} đ`
+                      : 'Đang tải...'}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Tiền sẽ tự động trừ vào quỹ CLB khi tạo game. Quỹ có thể âm, truy thu sau.
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">Ngày (mặc định: hôm nay)</label>
@@ -288,19 +335,11 @@ export default function GamesPage() {
                   type="submit"
                   className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-lg"
                 >
-                  Thêm game
+                  {editingGameId !== null ? 'Cập nhật game' : 'Thêm game'}
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setDate('');
-                    setNote('');
-                    setExpenses([
-                      { name: 'Tiền sân', amount: '' },
-                      { name: 'Tiền nước', amount: '' },
-                    ]);
-                  }}
+                  onClick={cancelEdit}
                   className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2 rounded-lg"
                 >
                   Hủy
@@ -334,12 +373,22 @@ export default function GamesPage() {
                         </h3>
                         {game.note && <p className="text-gray-600 text-sm">{game.note}</p>}
                       </div>
-                      <button
-                        onClick={() => handleDelete(game.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => startEditGame(game)}
+                          className="text-blue-600 hover:text-blue-800"
+                          title="Sửa"
+                        >
+                          <Pencil className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(game.id)}
+                          className="text-red-500 hover:text-red-700"
+                          title="Xóa"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-2 mb-3">
                       {gameExpenses.map((expense, idx) => (
