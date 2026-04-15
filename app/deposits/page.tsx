@@ -38,6 +38,7 @@ export default function DepositsPage() {
   const [amount, setAmount] = useState('');
   const [filterFromDate, setFilterFromDate] = useState('');
   const [filterToDate, setFilterToDate] = useState('');
+  const [applyingFilter, setApplyingFilter] = useState(false);
 
   useEffect(() => {
     checkAdmin();
@@ -88,11 +89,19 @@ export default function DepositsPage() {
 
   const fetchDepositsWithFilter = async (from: string, to: string) => {
     try {
-      const res = await fetch(`/api/deposits?from_date=${encodeURIComponent(from)}&to_date=${encodeURIComponent(to)}`);
-      const data = await res.ok ? res.json() : [];
+      const res = await fetch(`/api/deposits?from_date=${encodeURIComponent(from)}&to_date=${encodeURIComponent(to)}&_t=${Date.now()}`);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('API error fetching deposits:', errorData);
+        alert(`Lỗi tải dữ liệu: ${errorData.error || 'Không thể kết nối server'}`);
+        setDeposits([]);
+        return;
+      }
+      const data = await res.json();
       setDeposits(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching deposits:', error);
+      alert('Lỗi kết nối khi tải dữ liệu');
       setDeposits([]);
     }
   };
@@ -112,8 +121,14 @@ export default function DepositsPage() {
       alert('Từ ngày phải nhỏ hơn hoặc bằng đến ngày');
       return;
     }
+    if (applyingFilter) return; // prevent double-click
+    setApplyingFilter(true);
     setLoading(true);
-    fetchDepositsWithFilter(filterFromDate, filterToDate).finally(() => setLoading(false));
+    fetchDepositsWithFilter(filterFromDate, filterToDate)
+      .finally(() => {
+        setLoading(false);
+        setApplyingFilter(false);
+      });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -143,13 +158,19 @@ export default function DepositsPage() {
         return;
       }
       
+      const newDeposit = await response.json();
+
+      // Expand filter range to include the new deposit's date
+      const newFrom = filterFromDate && newDeposit.date < filterFromDate ? newDeposit.date : filterFromDate;
+      const newTo = filterToDate && newDeposit.date > filterToDate ? newDeposit.date : filterToDate;
+      setFilterFromDate(newFrom);
+      setFilterToDate(newTo);
+
       setMemberId('');
       setDate('');
       setAmount('');
       setShowAddForm(false);
-      if (filterFromDate && filterToDate) {
-        fetchDepositsWithFilter(filterFromDate, filterToDate);
-      }
+      fetchDepositsWithFilter(newFrom, newTo);
       const membersRes = await fetch('/api/members');
       setMembers(await membersRes.json());
     } catch (error) {
@@ -162,13 +183,18 @@ export default function DepositsPage() {
     if (!confirm('Bạn có chắc muốn xóa giao dịch này?')) return;
 
     try {
-      await fetch(`/api/deposits/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/deposits/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        alert(`Lỗi khi xóa: ${errorData.error || 'Không thể xóa giao dịch'}`);
+        return;
+      }
       if (filterFromDate && filterToDate) {
         fetchDepositsWithFilter(filterFromDate, filterToDate);
       }
     } catch (error) {
       console.error('Error deleting deposit:', error);
-      alert('Có lỗi xảy ra');
+      alert('Có lỗi xảy ra khi xóa');
     }
   };
 
